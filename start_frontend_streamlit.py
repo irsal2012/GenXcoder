@@ -15,7 +15,7 @@ def main():
     logger = logging.getLogger(__name__)
     
     # Change to frontend directory
-    frontend_dir = os.path.join(os.path.dirname(__file__), 'frontend')
+    frontend_dir = os.path.join(os.path.dirname(__file__), 'frontend_streamlit')
     
     if not os.path.exists(frontend_dir):
         logger.error("Frontend directory not found!")
