@@ -1,7 +1,7 @@
-# test-1
+# Test-1
 
 ## Description
-Create a data analysis tool that reads CSV files, performs statistical analysis, generates visualizations, and exports reports in PDF format.
+Create a data analysis tool that reads CSV files, performs statistical analysis, generates interactive visualizations, and exports comprehensive reports in PDF format.
 
 ## Installation
 ```bash
