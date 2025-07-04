@@ -1,0 +1,17 @@
+# tessss
+
+## Description
+Create a data analysis tool that reads CSV files, performs statistical analysis, generates interactive visualizations, and exports comprehensive reports in PDF format.
+
+## Installation
+```bash
+pip install -r requirements.txt
+```
+
+## Usage
+```bash
+python main.py
+```
+
+## Generated Files
+- utility.py
