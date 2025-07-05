@@ -43,8 +43,8 @@ services:
       - agent-network
     # MCP gateway runs on stdio, no port exposure needed
 
-  # Original Backend (Optional - for existing web interface)
-  original-backend:
+  # Project Management Backend - Handles project storage, history, and file management
+  project-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -53,9 +53,6 @@ services:
     environment:
       - PORT=8000
       - HOST=0.0.0.0
-      - AGENT_SERVICE_URL=http://agent-service:8001
-    depends_on:
-      - agent-service
     volumes:
       - ./backend:/app
       - backend-data:/app/data
@@ -74,7 +71,7 @@ services:
       - REACT_APP_API_URL=http://localhost:8000
       - REACT_APP_AGENT_SERVICE_URL=http://localhost:8001
     depends_on:
-      - original-backend
+      - project-backend
       - agent-service
     volumes:
       - ./frontend:/app
