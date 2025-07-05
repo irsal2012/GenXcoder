@@ -78,7 +78,42 @@ The system includes several specialized agents:
 
 ## 🚀 Quick Start
 
-### Option 1: Docker Compose (Recommended)
+### Option 1: One-Command Startup (Recommended)
+
+The easiest way to start all services at once:
+
+```bash
+# Clone and navigate to the project
+git clone <your-repo>
+cd GenXcode
+
+# Start all services with Python script
+./start_all_services.py
+
+# OR start with Shell script
+./start_all_services.sh
+
+# OR use Make commands
+make start        # Python version
+make start-sh     # Shell version
+make help         # See all available commands
+```
+
+The startup tools will:
+- ✅ Check all dependencies (Python, Node.js, npm)
+- 📦 Install missing dependencies automatically
+- 🚀 Start all services in the correct order
+- 🔍 Perform health checks
+- 📊 Display service information and URLs
+- 🛑 Handle graceful shutdown with Ctrl+C
+
+**Services started:**
+- 🔧 Backend API: http://localhost:8000
+- 🤖 Agent Service: http://localhost:8001  
+- 🌐 Frontend: http://localhost:5173
+- 🌉 MCP Gateway: Ready for MCP connections
+
+### Option 2: Docker Compose
 
 1. **Clone and navigate to the project**:
    ```bash
@@ -89,6 +124,8 @@ The system includes several specialized agents:
 2. **Start all services**:
    ```bash
    docker-compose up -d
+   # OR
+   make docker-up
    ```
 
 3. **Verify services are running**:
@@ -101,9 +138,12 @@ The system includes several specialized agents:
    
    # Check capabilities
    curl http://localhost:8001/v1/capabilities
+   
+   # OR use health check command
+   make test
    ```
 
-### Option 2: Local Development
+### Option 3: Manual Local Development
 
 1. **Start Agent Service**:
    ```bash
@@ -118,6 +158,20 @@ The system includes several specialized agents:
    npm install
    npm run build
    npm run dev
+   ```
+
+3. **Start Frontend**:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+4. **Start Backend** (optional):
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   python main.py
    ```
 
 ## 🔧 MCP Integration
@@ -235,15 +289,100 @@ Once configured, you'll have access to these MCP tools:
    curl http://localhost:8001/v1/pipelines/execution/{execution_id}/status
    ```
 
+## 🛠️ Service Management Tools
+
+### Startup Scripts
+
+The project includes comprehensive startup tools for easy service management:
+
+#### Python Startup Tool (`start_all_services.py`)
+Feature-rich Python script with:
+- 🔍 Automatic dependency checking
+- 📦 Auto-installation of missing dependencies  
+- 🚀 Sequential service startup with health checks
+- 📊 Real-time service monitoring
+- 🛑 Graceful shutdown handling
+- 🎨 Colored terminal output
+
+```bash
+./start_all_services.py
+```
+
+#### Shell Startup Tool (`start_all_services.sh`)
+Lightweight bash script with:
+- ⚡ Fast startup and minimal dependencies
+- 🔧 Process management and cleanup
+- 📝 Log file generation (`/tmp/*.log`)
+- 🎯 Health check validation
+
+```bash
+./start_all_services.sh
+```
+
+#### Makefile Commands
+Simple make commands for common tasks:
+
+```bash
+make help         # Show all available commands
+make start        # Start all services (Python version)
+make start-sh     # Start all services (Shell version)
+make stop         # Stop all running services
+make install      # Install all dependencies
+make clean        # Clean build artifacts
+make docker-up    # Start with Docker Compose
+make docker-down  # Stop Docker services
+make test         # Run health checks
+make dev          # Alias for 'make start'
+make prod         # Alias for 'make docker-up'
+```
+
+### Service Management
+
+#### Starting Services
+```bash
+# Recommended: Use startup scripts
+./start_all_services.py
+
+# Alternative methods
+make start
+./start_all_services.sh
+docker-compose up -d
+```
+
+#### Stopping Services
+```bash
+# Graceful shutdown (Ctrl+C when using startup scripts)
+# OR force stop all services
+make stop
+
+# Stop Docker services
+make docker-down
+docker-compose down
+```
+
+#### Installing Dependencies
+```bash
+# Auto-install all dependencies
+make install
+
+# Manual installation
+pip install -r backend/requirements.txt
+pip install -r agent-service/requirements.txt
+cd frontend && npm install
+cd mcp-gateway && npm install && npm run build
+```
+
 ## 🔍 Monitoring & Health Checks
 
 ### Service Health
 ```bash
-# Agent Service health
-curl http://localhost:8001/health
+# Quick health check for all services
+make test
 
-# Original backend health (if running)
-curl http://localhost:8000/health
+# Individual service health checks
+curl http://localhost:8001/health  # Agent Service
+curl http://localhost:8000/health  # Backend (if running)
+curl http://localhost:5173         # Frontend
 ```
 
 ### Real-time Progress Monitoring
@@ -252,17 +391,31 @@ curl http://localhost:8000/health
 curl http://localhost:8001/v1/pipelines/execution/{execution_id}/stream
 ```
 
+### Service Logs
+```bash
+# When using startup scripts, logs are displayed in terminal
+# For Docker Compose:
+docker-compose logs agent-service
+docker-compose logs mcp-gateway
+docker-compose logs -f agent-service  # Follow logs
+
+# For shell script version, check log files:
+tail -f /tmp/backend\ api.log
+tail -f /tmp/agent\ service.log
+tail -f /tmp/frontend.log
+tail -f /tmp/mcp\ gateway.log
+```
+
 ### Docker Compose Monitoring
 ```bash
 # Check service status
 docker-compose ps
 
-# View logs
-docker-compose logs agent-service
-docker-compose logs mcp-gateway
+# View resource usage
+docker stats
 
-# Follow logs in real-time
-docker-compose logs -f agent-service
+# Check service health
+docker-compose exec agent-service curl http://localhost:8001/health
 ```
 
 ## 🛠️ Development
