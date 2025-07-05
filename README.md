@@ -1,239 +1,379 @@
-# Multi-Agent Code Generator - Refactored Architecture
+# Multi-Agent Framework with MCP Gateway
 
-A sophisticated multi-agent framework that transforms natural language descriptions into complete Python applications using specialized AI agents. This project has been refactored to separate business logic from the frontend using a FastAPI backend and clean Streamlit frontend.
+A microservice architecture that provides multi-agent capabilities through both REST API and MCP (Model Context Protocol) interfaces, enabling AI tools like Claude to discover and use agent capabilities seamlessly.
 
 ## 🏗️ Architecture Overview
 
-The system now follows a clean separation of concerns with a backend/frontend architecture:
-
 ```
-┌─────────────────┐    HTTP/WebSocket    ┌─────────────────┐
-│                 │ ◄─────────────────► │                 │
-│  Streamlit UI   │                     │  FastAPI Backend│
-│   (Frontend)    │                     │   (Business     │
-│                 │                     │     Logic)      │
-└─────────────────┘                     └─────────────────┘
-                                                │
-                                                ▼
-                                        ┌─────────────────┐
-                                        │   AutoGen       │
-                                        │   Agents        │
-                                        │                 │
-                                        └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Application   │    │   Application   │    │      MCP        │
+│       A         │    │       B         │    │    Client       │
+│   (Your Web)    │    │  (External)     │    │  (Claude/etc)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │ REST API              │ REST API              │ MCP Protocol
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    API Gateway Layer                            │
+│  ┌─────────────────┐              ┌─────────────────┐          │
+│  │   FastAPI       │              │   MCP Server    │          │
+│  │   Gateway       │◄────────────►│   Gateway       │          │
+│  │                 │              │                 │          │
+│  └─────────────────┘              └─────────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 Agent Service Layer                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
+│  │   Agent     │  │   Agent     │  │   Agent     │            │
+│  │  Service A  │  │  Service B  │  │  Service C  │            │
+│  │             │  │             │  │             │            │
+│  └─────────────┘  └─────────────┘  └─────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Backend (FastAPI)
-- **API Layer**: RESTful endpoints with automatic OpenAPI documentation
-- **Service Layer**: Business logic for pipeline, agents, progress, and projects
-- **Core Logic**: Multi-agent pipeline orchestration and agent management
-- **Real-time Updates**: WebSocket support for live progress tracking
+## 🚀 Components
 
-### Frontend (Streamlit)
-- **UI Only**: Clean separation with no business logic
-- **API Client**: HTTP client for backend communication
-- **Real-time UI**: Progress tracking and live updates
-- **User Experience**: Intuitive interface for code generation
+### 1. Agent Service (Port 8001)
+Standalone FastAPI service providing multi-agent capabilities:
+- **Individual Agent Execution**: Run specific agents (Python coder, code reviewer, etc.)
+- **Pipeline Execution**: Run complete multi-agent workflows
+- **Asynchronous Processing**: Background execution with progress tracking
+- **Real-time Monitoring**: WebSocket support for live updates
+- **Cross-Application Compatibility**: REST API accessible by any application
+
+### 2. MCP Gateway
+TypeScript-based MCP server that translates MCP protocol to Agent Service calls:
+- **MCP Tools**: Execute agents and pipelines through MCP protocol
+- **MCP Resources**: Access agent metadata and execution status
+- **Auto-Discovery**: Automatically discovers available agents
+- **Error Handling**: Robust error handling and connection management
+
+### 3. Original Backend (Port 8000) - Optional
+Your existing FastAPI backend, now acting as a client to the Agent Service.
+
+### 4. Frontend (Port 3000) - Optional
+React frontend that can consume both the original backend and Agent Service directly.
+
+## 🛠️ Available Agents
+
+The system includes several specialized agents:
+
+- **Python Coder**: Generates Python code from natural language descriptions
+- **Code Reviewer**: Reviews and improves existing code
+- **Documentation Writer**: Creates comprehensive documentation
+- **Test Generator**: Generates unit tests for code
+- **Deployment Engineer**: Creates deployment configurations
+- **UI Designer**: Generates user interfaces (Streamlit apps)
+- **Requirement Analyst**: Analyzes and structures project requirements
+
+## 📋 Prerequisites
+
+- **Docker & Docker Compose**: For containerized deployment
+- **Python 3.11+**: For local development
+- **Node.js 18+**: For MCP gateway development
+- **MCP-compatible client**: Like Claude Desktop or Cline
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Python 3.8+
-- All dependencies from `requirements.txt`
+### Option 1: Docker Compose (Recommended)
 
-### Installation
+1. **Clone and navigate to the project**:
+   ```bash
+   git clone <your-repo>
+   cd GenXcode
+   ```
+
+2. **Start all services**:
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Verify services are running**:
+   ```bash
+   # Check Agent Service
+   curl http://localhost:8001/health
+   
+   # Check available agents
+   curl http://localhost:8001/v1/agents
+   
+   # Check capabilities
+   curl http://localhost:8001/v1/capabilities
+   ```
+
+### Option 2: Local Development
+
+1. **Start Agent Service**:
+   ```bash
+   cd agent-service
+   pip install -r requirements.txt
+   python main.py
+   ```
+
+2. **Build and test MCP Gateway**:
+   ```bash
+   cd mcp-gateway
+   npm install
+   npm run build
+   npm run dev
+   ```
+
+## 🔧 MCP Integration
+
+### Install MCP Server
+
+Add the MCP server to your MCP settings file:
+
+**For Cline** (`~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`):
+```json
+{
+  "mcpServers": {
+    "agents": {
+      "command": "node",
+      "args": ["/path/to/GenXcode/mcp-gateway/build/index.js"],
+      "env": {
+        "AGENT_SERVICE_URL": "http://localhost:8001"
+      }
+    }
+  }
+}
+```
+
+**For Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "agents": {
+      "command": "node",
+      "args": ["/path/to/GenXcode/mcp-gateway/build/index.js"],
+      "env": {
+        "AGENT_SERVICE_URL": "http://localhost:8001"
+      }
+    }
+  }
+}
+```
+
+### Available MCP Tools
+
+Once configured, you'll have access to these MCP tools:
+
+- **`execute_agent`**: Run individual agents
+- **`execute_pipeline`**: Run complete multi-agent pipeline
+- **`get_agent_capabilities`**: Discover available agents and features
+- **`get_execution_status`**: Check agent execution status
+- **`get_pipeline_status`**: Check pipeline execution status
+- **`validate_input`**: Validate input for agents
+
+### Available MCP Resources
+
+- **`agent://capabilities`**: Service capabilities
+- **`agent://health`**: Service health status
+- **`agent://{agent_name}/metadata`**: Agent metadata
+- **`execution://{execution_id}/status`**: Execution status
+- **`pipeline://{execution_id}/progress`**: Pipeline progress
+
+## 💡 Usage Examples
+
+### Using MCP Tools (in Claude/Cline)
+
+1. **Discover available agents**:
+   ```
+   Use the get_agent_capabilities tool to see what agents are available
+   ```
+
+2. **Execute a single agent**:
+   ```
+   Use execute_agent with:
+   - agent_name: "python_coder"
+   - input_data: "Create a function to calculate fibonacci numbers"
+   ```
+
+3. **Execute complete pipeline**:
+   ```
+   Use execute_pipeline with:
+   - input_data: "Build a web scraper for e-commerce product data"
+   - async_execution: true
+   ```
+
+4. **Check execution status**:
+   ```
+   Use get_pipeline_status with the execution_id from the previous call
+   ```
+
+### Using REST API
+
+1. **List available agents**:
+   ```bash
+   curl http://localhost:8001/v1/agents
+   ```
+
+2. **Execute an agent**:
+   ```bash
+   curl -X POST http://localhost:8001/v1/agents/python_coder/execute \
+     -H "Content-Type: application/json" \
+     -d '{
+       "input_data": "Create a function to calculate fibonacci numbers",
+       "async_execution": false
+     }'
+   ```
+
+3. **Execute a pipeline**:
+   ```bash
+   curl -X POST http://localhost:8001/v1/pipelines/execute \
+     -H "Content-Type: application/json" \
+     -d '{
+       "input_data": "Build a web scraper for e-commerce product data",
+       "async_execution": true
+     }'
+   ```
+
+4. **Check pipeline status**:
+   ```bash
+   curl http://localhost:8001/v1/pipelines/execution/{execution_id}/status
+   ```
+
+## 🔍 Monitoring & Health Checks
+
+### Service Health
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Agent Service health
+curl http://localhost:8001/health
+
+# Original backend health (if running)
+curl http://localhost:8000/health
 ```
 
-### Running the Application
-
-#### Option 1: Using Startup Scripts (Recommended)
+### Real-time Progress Monitoring
 ```bash
-# Terminal 1: Start the backend
-python start_backend.py
-
-# Terminal 2: Start the frontend
-python start_frontend.py
+# Stream pipeline progress (Server-Sent Events)
+curl http://localhost:8001/v1/pipelines/execution/{execution_id}/stream
 ```
 
-#### Option 2: Manual Startup
+### Docker Compose Monitoring
 ```bash
-# Terminal 1: Start FastAPI backend
-cd backend
-python main.py
-# Backend available at: http://localhost:8000
-# API docs available at: http://localhost:8000/docs
+# Check service status
+docker-compose ps
 
-# Terminal 2: Start Streamlit frontend
-cd frontend
-streamlit run streamlit_app.py
-# Frontend available at: http://localhost:8501
+# View logs
+docker-compose logs agent-service
+docker-compose logs mcp-gateway
+
+# Follow logs in real-time
+docker-compose logs -f agent-service
 ```
 
-## 📁 Project Structure
+## 🛠️ Development
 
-```
-Multi-Agent-Code/
-├── backend/                    # FastAPI Backend
-│   ├── main.py                # FastAPI app entry point
-│   ├── api/                   # API layer
-│   │   ├── routes/           # API route handlers
-│   │   │   ├── pipeline.py   # Pipeline endpoints
-│   │   │   ├── agents.py     # Agent endpoints
-│   │   │   ├── progress.py   # Progress tracking + WebSocket
-│   │   │   └── projects.py   # Project management
-│   │   └── dependencies.py   # Dependency injection
-│   ├── services/             # Business logic layer
-│   │   ├── pipeline_service.py
-│   │   ├── agent_service.py
-│   │   ├── progress_service.py
-│   │   └── project_service.py
-│   ├── models/               # Pydantic models
-│   │   ├── requests.py       # Request models
-│   │   ├── responses.py      # Response models
-│   │   └── schemas.py        # Data schemas
-│   ├── core/                 # Core business logic
-│   ├── agents/               # AutoGen agent definitions
-│   └── config/               # Configuration
-├── frontend/                  # Streamlit Frontend
-│   ├── streamlit_app.py      # Main UI application
-│   └── client/               # API client
-│       └── api_client.py     # HTTP client for backend
-├── start_backend.py          # Backend startup script
-├── start_frontend.py         # Frontend startup script
-├── requirements.txt          # Dependencies
-└── README.md                 # This file
-```
+### Agent Service Development
 
-## 🔧 API Endpoints
+1. **Add new agents**: Create new agent classes in `agent-service/agents/`
+2. **Modify API routes**: Update routes in `agent-service/api/routes/`
+3. **Test locally**:
+   ```bash
+   cd agent-service
+   python main.py
+   ```
 
-### Pipeline Management
-- `POST /api/v1/pipeline/generate` - Start code generation
-- `POST /api/v1/pipeline/validate` - Validate user input
-- `GET /api/v1/pipeline/status` - Get pipeline status
-- `GET /api/v1/pipeline/status/{project_id}` - Get project status
-- `POST /api/v1/pipeline/cancel/{project_id}` - Cancel project
-- `GET /api/v1/pipeline/result/{project_id}` - Get project result
+### MCP Gateway Development
 
-### Agent Information
-- `GET /api/v1/agents/info` - Get all agent information
-- `GET /api/v1/agents/{agent_name}` - Get specific agent details
-- `GET /api/v1/agents/capabilities/{agent_name}` - Get agent capabilities
+1. **Add new tools**: Create new tool files in `mcp-gateway/src/tools/`
+2. **Add new resources**: Update resource handlers in `mcp-gateway/src/index.ts`
+3. **Test locally**:
+   ```bash
+   cd mcp-gateway
+   npm run dev
+   ```
 
-### Progress Tracking
-- `GET /api/v1/progress/{project_id}` - Get project progress
-- `GET /api/v1/progress/{project_id}/logs` - Get project logs
-- `WebSocket /api/v1/progress/ws/{project_id}` - Real-time progress updates
+### Building and Testing
 
-### Project Management
-- `GET /api/v1/projects/history` - Get project history
-- `GET /api/v1/projects/statistics` - Get project statistics
-- `GET /api/v1/projects/{project_id}` - Get project result
-- `GET /api/v1/projects/search` - Search projects
-
-## 🤖 Available Agents
-
-1. **Requirement Analyst** - Analyzes natural language input and creates structured requirements
-2. **Python Coder** - Generates high-quality Python code from requirements
-3. **Code Reviewer** - Reviews code for quality, security, and best practices
-4. **Documentation Writer** - Creates comprehensive documentation
-5. **Test Generator** - Generates comprehensive test suites
-6. **Deployment Engineer** - Creates deployment configurations and scripts
-7. **UI Designer** - Creates Streamlit user interfaces
-
-## 🔄 Pipeline Steps
-
-1. **Requirements Analysis** - Convert natural language to structured requirements
-2. **Code Generation** - Generate Python code from requirements
-3. **Code Review & Iteration** - Review and improve code quality
-4. **Documentation Generation** - Create comprehensive documentation
-5. **Test Case Generation** - Generate test suites
-6. **Deployment Configuration** - Create deployment configs
-7. **UI Generation** - Create Streamlit user interface
-
-## 🌟 Key Features
-
-### Backend Features
-- **Async/Await Support** - Full async support for better performance
-- **WebSocket Support** - Real-time progress updates
-- **Background Tasks** - Long-running pipeline execution
-- **Auto-generated OpenAPI** - Automatic API documentation
-- **CORS Support** - Enable frontend-backend communication
-- **Error Handling** - Comprehensive error handling and logging
-
-### Frontend Features
-- **Clean UI** - Separation of concerns with no business logic
-- **Real-time Updates** - Live progress tracking via API polling
-- **Error Boundaries** - Graceful error handling and recovery
-- **Download Support** - Download generated code and documentation
-- **Project History** - View and manage previous generations
-
-## 🔧 Development
-
-### Backend Development
 ```bash
-cd backend
-python main.py
-# API docs available at http://localhost:8000/docs
+# Build MCP Gateway
+cd mcp-gateway && npm run build
+
+# Test Agent Service
+cd agent-service && python -m pytest
+
+# Build Docker images
+docker-compose build
+
+# Run specific services
+docker-compose up agent-service
+docker-compose up mcp-gateway
 ```
 
-### Frontend Development
+## 🔧 Configuration
+
+### Environment Variables
+
+**Agent Service**:
+- `PORT`: Service port (default: 8001)
+- `HOST`: Service host (default: 0.0.0.0)
+- `PYTHONPATH`: Python path for imports
+
+**MCP Gateway**:
+- `AGENT_SERVICE_URL`: URL of the Agent Service (default: http://localhost:8001)
+- `NODE_ENV`: Node environment (development/production)
+
+### Pipeline Configuration
+
+Modify pipeline configurations in `agent-service/config/pipelines/default.yaml` to customize agent execution order and dependencies.
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+1. **MCP Gateway can't connect to Agent Service**:
+   - Ensure Agent Service is running on port 8001
+   - Check `AGENT_SERVICE_URL` environment variable
+   - Verify network connectivity
+
+2. **Agents not discovered**:
+   - Check agent registration in `agent-service/agents/`
+   - Verify agent factory auto-discovery
+   - Check logs for import errors
+
+3. **Pipeline execution fails**:
+   - Check pipeline configuration
+   - Verify agent dependencies
+   - Review execution logs
+
+### Debugging
+
 ```bash
-cd frontend
-streamlit run streamlit_app.py
+# Check service logs
+docker-compose logs agent-service
+docker-compose logs mcp-gateway
+
+# Test MCP Gateway connection
+cd mcp-gateway && npm run dev
+
+# Test Agent Service directly
+curl -v http://localhost:8001/health
 ```
 
-### Testing the API
-Visit `http://localhost:8000/docs` for interactive API documentation and testing.
+## 📚 API Documentation
 
-## 📊 Benefits of New Architecture
-
-1. **Separation of Concerns** - Clear distinction between UI and business logic
-2. **Scalability** - Backend can serve multiple frontends (web, mobile, CLI)
-3. **Testability** - Business logic can be tested independently
-4. **Maintainability** - Easier to maintain and extend each layer
-5. **Performance** - Async backend with efficient resource utilization
-6. **API Access** - External systems can integrate via REST API
-7. **Real-time Updates** - WebSocket support for live progress tracking
-
-## 🚀 Deployment
-
-The refactored architecture supports various deployment options:
-
-- **Development**: Run both services locally
-- **Production**: Deploy backend and frontend separately
-- **Docker**: Containerize each service independently
-- **Cloud**: Deploy to cloud platforms with auto-scaling
+Once the Agent Service is running, visit:
+- **OpenAPI Documentation**: http://localhost:8001/docs
+- **Alternative Documentation**: http://localhost:8001/redoc
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test both backend and frontend
+4. Add tests if applicable
 5. Submit a pull request
 
-## 📝 License
+## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🆘 Troubleshooting
+## 🙏 Acknowledgments
 
-### Backend Issues
-- Ensure all dependencies are installed: `pip install -r requirements.txt`
-- Check if port 8000 is available
-- Verify agent configurations in `backend/config/`
-
-### Frontend Issues
-- Ensure backend is running at `http://localhost:8000`
-- Check if port 8501 is available
-- Verify API client configuration
-
-### Common Issues
-- **Connection Refused**: Make sure backend is running before starting frontend
-- **Import Errors**: Ensure you're running from the correct directory
-- **Agent Errors**: Check your OpenAI API key and model configurations
-
-For more help, check the API documentation at `http://localhost:8000/docs` when the backend is running.
-# GenXcode
+- Built with FastAPI, TypeScript, and the Model Context Protocol
+- Inspired by microservice architecture patterns
+- Designed for maximum shareability and interoperability

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "agents": {
+      "command": "node",
+      "args": ["/Users/iimran/Desktop/Genexsus/GenXcode/mcp-gateway/build/index.js"],
+      "env": {
+        "AGENT_SERVICE_URL": "http://localhost:8001"
+      }
+    }
+  }
+}

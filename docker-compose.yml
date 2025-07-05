@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # Agent Service - Standalone service providing multi-agent capabilities
+  agent-service:
+    build:
+      context: ./agent-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - HOST=0.0.0.0
+      - PYTHONPATH=/app
+    volumes:
+      - ./agent-service:/app
+      - agent-service-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - agent-network
+
+  # MCP Gateway - Provides MCP protocol access to agent service
+  mcp-gateway:
+    build:
+      context: ./mcp-gateway
+      dockerfile: Dockerfile
+    environment:
+      - AGENT_SERVICE_URL=http://agent-service:8001
+      - NODE_ENV=production
+    depends_on:
+      agent-service:
+        condition: service_healthy
+    volumes:
+      - ./mcp-gateway:/app
+    restart: unless-stopped
+    networks:
+      - agent-network
+    # MCP gateway runs on stdio, no port exposure needed
+
+  # Original Backend (Optional - for existing web interface)
+  original-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - AGENT_SERVICE_URL=http://agent-service:8001
+    depends_on:
+      - agent-service
+    volumes:
+      - ./backend:/app
+      - backend-data:/app/data
+    restart: unless-stopped
+    networks:
+      - agent-network
+
+  # Frontend (Optional - for existing web interface)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_AGENT_SERVICE_URL=http://localhost:8001
+    depends_on:
+      - original-backend
+      - agent-service
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    restart: unless-stopped
+    networks:
+      - agent-network
+
+volumes:
+  agent-service-data:
+    driver: local
+  backend-data:
+    driver: local
+
+networks:
+  agent-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

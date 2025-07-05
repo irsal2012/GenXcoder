@@ -147,7 +147,7 @@ cache/
 Thumbs.db
 
 # Node.js / React Frontend
-frontend/node_modules/
+*/node_modules/
 frontend/dist/
 frontend/build/
 frontend/.vite/
