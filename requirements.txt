@@ -8,9 +8,7 @@ fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 websockets>=12.0
 
-# Web interface
-streamlit>=1.28.0
-streamlit-chat>=0.1.1
+# Web interface (React frontend handles UI)
 plotly>=5.17.0
 
 # HTTP client for frontend
