@@ -14,14 +14,28 @@ import {
 
 class APIClient {
   private client: AxiosInstance;
+  private agentClient: AxiosInstance;
   private baseURL: string;
+  private agentServiceURL: string;
   private connectionStatus: boolean | null = null;
   private lastHealthCheck = 0;
 
-  constructor(baseURL = 'http://localhost:8000') {
+  constructor(baseURL = 'http://localhost:8000', agentServiceURL = 'http://localhost:8001') {
     this.baseURL = baseURL;
+    this.agentServiceURL = agentServiceURL;
+    
+    // Backend service client
     this.client = axios.create({
       baseURL,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Agent service client
+    this.agentClient = axios.create({
+      baseURL: agentServiceURL,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
@@ -130,36 +144,109 @@ class APIClient {
 
   // Code generation
   async generateCode(request: GenerateCodeRequest): Promise<GenerationResponse> {
-    return this.request<GenerationResponse>('post', '/api/v1/pipeline/generate', request);
+    try {
+      const response = await this.agentRequest<any>('post', '/v1/pipelines/execute', {
+        input_data: request.user_input,
+        pipeline_name: request.project_name || "default",
+        async_execution: true
+      });
+      
+      return {
+        project_id: response.execution_id,
+        message: response.message || "Pipeline execution started",
+        status: response.status || "running"
+      };
+    } catch (error) {
+      console.error('Failed to generate code:', error);
+      throw error;
+    }
   }
 
   // Input validation
   async validateInput(userInput: string): Promise<ValidationResponse> {
-    return this.request<ValidationResponse>('post', '/api/v1/pipeline/validate', {
-      user_input: userInput,
-    });
+    try {
+      const response = await this.agentRequest<any>('post', '/v1/pipelines/validate', {
+        input_data: userInput
+      });
+      
+      return {
+        is_valid: response.validation?.is_valid !== false,
+        warnings: response.validation?.warnings || [],
+        suggestions: response.validation?.suggestions || []
+      };
+    } catch (error) {
+      console.error('Failed to validate input:', error);
+      throw error;
+    }
   }
 
   // Pipeline status
   async getPipelineStatus(): Promise<PipelineStatus> {
-    return this.request<PipelineStatus>('get', '/api/v1/pipeline/status');
+    try {
+      const response = await this.agentRequest<any>('get', '/v1/pipelines/');
+      // Transform the response to match the expected PipelineStatus format
+      return {
+        current_progress: {
+          total_steps: 0,
+          completed_steps: 0,
+          failed_steps: 0,
+          progress_percentage: 0
+        },
+        total_runs: response.total_executions || 0,
+        successful_runs: 0,
+        failed_runs: 0
+      };
+    } catch (error) {
+      console.error('Failed to get pipeline status:', error);
+      throw error;
+    }
   }
 
   // Project status
   async getProjectStatus(projectId: string): Promise<any> {
-    return this.request('get', `/api/v1/pipeline/status/${projectId}`);
+    try {
+      const response = await this.agentRequest<any>('get', `/v1/pipelines/execution/${projectId}/status`);
+      return response;
+    } catch (error) {
+      console.error('Failed to get project status:', error);
+      throw error;
+    }
   }
 
   // Project result
   async getProjectResult(projectId: string): Promise<ProjectResult> {
-    return this.request<ProjectResult>('get', `/api/v1/pipeline/result/${projectId}`);
+    try {
+      const response = await this.agentRequest<any>('get', `/v1/pipelines/execution/${projectId}/status`);
+      
+      // Transform the response to match ProjectResult format
+      return {
+        project_id: projectId,
+        project_name: response.pipeline_name || 'Generated Project',
+        success: response.status === 'completed',
+        timestamp: response.completed_at || response.started_at,
+        execution_time: 0, // Calculate if needed
+        user_input: '',
+        code: response.result?.code || {},
+        documentation: response.result?.documentation || {},
+        tests: response.result?.tests || {},
+        deployment: response.result?.deployment || {},
+        ui: response.result?.ui || {},
+        pipeline_metadata: response.result?.metadata || {},
+        progress: response.progress || {},
+        error: response.error
+      };
+    } catch (error) {
+      console.error('Failed to get project result:', error);
+      throw error;
+    }
   }
 
   // Cancel project
   async cancelProject(projectId: string): Promise<boolean> {
     try {
-      await this.request('post', `/api/v1/pipeline/cancel/${projectId}`);
-      return true;
+      // Note: The agent service doesn't have a cancel endpoint, so we'll return false for now
+      console.warn('Cancel project not implemented in agent service');
+      return false;
     } catch (error) {
       return false;
     }
@@ -167,25 +254,113 @@ class APIClient {
 
   // Progress tracking with extended timeout support
   async getProjectProgress(projectId: string, extendedTimeout = false): Promise<ProjectProgress> {
-    const timeout = extendedTimeout ? 120000 : 30000;
-    return this.request<ProjectProgress>('get', `/api/v1/progress/${projectId}`, undefined, {
-      timeout,
-    });
+    try {
+      const response = await this.agentRequest<any>('get', `/v1/pipelines/execution/${projectId}/status`);
+      
+      // Transform the response to match ProjectProgress format
+      const progress = response.progress || {};
+      return {
+        project_id: projectId,
+        progress_percentage: progress.progress_percentage || 0,
+        total_steps: progress.total_steps || 0,
+        completed_steps: progress.completed_steps || 0,
+        failed_steps: progress.failed_steps || 0,
+        is_running: response.status === 'running',
+        is_completed: response.status === 'completed',
+        has_failures: response.status === 'failed',
+        current_step_info: progress.current_step_info,
+        steps: progress.steps || [],
+        logs: progress.logs || []
+      };
+    } catch (error) {
+      console.error('Failed to get project progress:', error);
+      throw error;
+    }
   }
 
   // Project logs
   async getProjectLogs(projectId: string, limit = 50): Promise<any> {
-    return this.request('get', `/api/v1/progress/${projectId}/logs?limit=${limit}`);
+    try {
+      const response = await this.agentRequest<any>('get', `/v1/pipelines/execution/${projectId}/status`);
+      return {
+        logs: response.progress?.logs || [],
+        project_id: projectId
+      };
+    } catch (error) {
+      console.error('Failed to get project logs:', error);
+      throw error;
+    }
+  }
+
+  // Agent service request helper
+  private async agentRequest<T>(
+    method: 'get' | 'post' | 'put' | 'delete',
+    url: string,
+    data?: any,
+    config?: any
+  ): Promise<T> {
+    try {
+      const response: AxiosResponse<T> = await this.agentClient[method](url, data, config);
+      return response.data;
+    } catch (error) {
+      console.error(`Agent Service ${method.toUpperCase()} ${url} failed:`, error);
+      throw error;
+    }
   }
 
   // Agents information
   async getAgentsInfo(): Promise<AgentsInfo> {
-    return this.request<AgentsInfo>('get', '/api/v1/agents/info');
+    try {
+      const response = await this.agentRequest<any>('get', '/v1/agents/');
+      // Transform the response to match the expected AgentsInfo format
+      return {
+        total_agents: response.total_agents || 0,
+        agents: response.agents || [],
+        factory_stats: response.factory_stats || {}
+      };
+    } catch (error) {
+      console.error('Failed to get agents info:', error);
+      throw error;
+    }
   }
 
   // Agent details
   async getAgentDetails(agentName: string): Promise<any> {
-    return this.request('get', `/api/v1/agents/${agentName}`);
+    return this.agentRequest('get', `/v1/agents/${agentName}/`);
+  }
+
+  // Get agent capabilities
+  async getAgentCapabilities(): Promise<any> {
+    return this.agentRequest('get', '/v1/capabilities/');
+  }
+
+  // Execute agent
+  async executeAgent(agentKey: string, request: any): Promise<any> {
+    return this.agentRequest('post', `/v1/agents/${agentKey}/execute/`, request);
+  }
+
+  // Get pipeline info
+  async getPipelineInfo(): Promise<any> {
+    return this.agentRequest('get', '/v1/pipelines/');
+  }
+
+  // Execute pipeline
+  async executePipeline(pipelineConfig: any): Promise<any> {
+    return this.agentRequest('post', '/v1/pipelines/execute/', pipelineConfig);
+  }
+
+  // Agent service health check
+  async getAgentServiceHealth(): Promise<any> {
+    try {
+      const response = await this.agentClient.get('/health');
+      return response.data;
+    } catch (error: any) {
+      return {
+        status: 'unreachable',
+        error: error.message,
+        ready: false,
+      };
+    }
   }
 
   // Project history

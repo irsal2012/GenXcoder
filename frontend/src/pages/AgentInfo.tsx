@@ -53,7 +53,15 @@ const AgentInfo: React.FC = () => {
         </p>
         
         <div className="space-y-3">
-          {agentsInfo.pipeline_steps.map((step, index) => (
+          {[
+            "Requirements Analysis",
+            "Code Generation", 
+            "Code Review",
+            "Test Generation",
+            "Documentation Creation",
+            "UI Design",
+            "Deployment Configuration"
+          ].map((step, index) => (
             <div key={index} className="flex items-center">
               <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
                 <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
@@ -78,11 +86,11 @@ const AgentInfo: React.FC = () => {
         </p>
         
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {agentsInfo.available_agents.map((agent, index) => (
+          {agentsInfo.agents.map((agent, index) => (
             <div key={index} className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
               <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
               <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                {agent}
+                {agent.name}
               </span>
             </div>
           ))}
@@ -99,7 +107,7 @@ const AgentInfo: React.FC = () => {
         </p>
         
         <div className="space-y-6">
-          {agentsInfo.agents_info.map((agent, index) => (
+          {agentsInfo.agents.map((agent, index) => (
             <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-6">
               <div className="flex items-start">
                 <div className="flex-shrink-0">

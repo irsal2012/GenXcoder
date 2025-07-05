@@ -106,9 +106,20 @@ export interface AgentInfo {
 }
 
 export interface AgentsInfo {
-  pipeline_steps: string[];
-  agents_info: AgentInfo[];
-  available_agents: string[];
+  total_agents: number;
+  agents: Array<{
+    agent_key: string;
+    name: string;
+    description: string;
+    capabilities: string[];
+    config_type: string;
+    version: string;
+  }>;
+  factory_stats: {
+    registered_agents: number;
+    cached_instances: number;
+    config_types: number;
+  };
 }
 
 export interface ProjectHistory {
