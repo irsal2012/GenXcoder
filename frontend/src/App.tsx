@@ -4,6 +4,7 @@ import Layout from '@/components/layout/Layout';
 import { CodeGenerator } from '@/pages/CodeGenerator';
 import ConversationalGenerator from '@/pages/ConversationalGenerator';
 import CollaborativeWorkspace from '@/pages/CollaborativeWorkspace';
+import EnterpriseDashboard from '@/pages/EnterpriseDashboard';
 import AgentInfo from '@/pages/AgentInfo';
 import ProjectHistory from '@/pages/ProjectHistory';
 
@@ -14,6 +15,7 @@ function App() {
       <Route path="/generator" element={<CodeGenerator />} />
       <Route path="/chat" element={<ConversationalGenerator />} />
       <Route path="/collaborate" element={<CollaborativeWorkspace />} />
+      <Route path="/enterprise" element={<EnterpriseDashboard />} />
       <Route path="/agents" element={
         <Layout>
           <AgentInfo />
