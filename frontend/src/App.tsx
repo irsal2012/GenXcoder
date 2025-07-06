@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { CodeGenerator } from '@/pages/CodeGenerator';
 import ConversationalGenerator from '@/pages/ConversationalGenerator';
+import CollaborativeWorkspace from '@/pages/CollaborativeWorkspace';
 import AgentInfo from '@/pages/AgentInfo';
 import ProjectHistory from '@/pages/ProjectHistory';
 
@@ -12,6 +13,7 @@ function App() {
       <Route path="/" element={<Navigate to="/generator" replace />} />
       <Route path="/generator" element={<CodeGenerator />} />
       <Route path="/chat" element={<ConversationalGenerator />} />
+      <Route path="/collaborate" element={<CollaborativeWorkspace />} />
       <Route path="/agents" element={
         <Layout>
           <AgentInfo />
