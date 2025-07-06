@@ -24,9 +24,8 @@ import {
 } from '../../store/conversationSlice';
 import { RootState } from '../../store';
 import { conversationManager, ConversationResponse } from '../../ai/conversation/ConversationManager';
-import MessageBubble from './MessageBubble';
-import QuickReplies from './QuickReplies';
-import TypingIndicator from './TypingIndicator';
+import { MessageBubble, QuickReplies, TypingIndicator } from './index';
+import VoiceInterface from '../voice/VoiceInterface';
 
 interface ConversationInterfaceProps {
   onReadyForGeneration?: (context: any) => void;
@@ -139,6 +138,14 @@ export const ConversationInterface: React.FC<ConversationInterfaceProps> = ({
     }
   };
 
+  const handleVoiceTranscript = (transcript: string, isFinal: boolean) => {
+    if (isFinal) {
+      handleSendMessage(transcript);
+    } else {
+      setInputValue(transcript);
+    }
+  };
+
   const getPhaseInfo = () => {
     const phaseConfig = {
       greeting: { 
@@ -247,6 +254,15 @@ export const ConversationInterface: React.FC<ConversationInterfaceProps> = ({
 
       {/* Input Area */}
       <div className="p-6 border-t border-gray-200">
+        {/* Voice Interface */}
+        <div className="mb-4">
+          <VoiceInterface
+            onTranscript={handleVoiceTranscript}
+            disabled={isProcessing}
+            className="justify-center"
+          />
+        </div>
+        
         <div className="flex items-end space-x-3">
           <div className="flex-1">
             <div className="relative">
@@ -259,7 +275,7 @@ export const ConversationInterface: React.FC<ConversationInterfaceProps> = ({
                 placeholder={
                   currentPhase === 'ready' 
                     ? "Ready to generate! Type 'yes' to proceed or ask for changes..."
-                    : "Type your message..."
+                    : "Type your message or use voice..."
                 }
                 className="w-full p-4 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
                 disabled={isProcessing}
@@ -276,7 +292,7 @@ export const ConversationInterface: React.FC<ConversationInterfaceProps> = ({
             {/* Input hints */}
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center space-x-4 text-xs text-gray-500">
-                <span>Press Enter to send</span>
+                <span>Press Enter to send or use voice</span>
                 {currentPhase === 'ready' && (
                   <span className="flex items-center space-x-1 text-green-600">
                     <CheckCircle className="h-3 w-3" />
