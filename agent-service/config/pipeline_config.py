@@ -14,6 +14,16 @@ class ExecutionMode(Enum):
     SEQUENTIAL = "sequential"
     PARALLEL = "parallel"
     CONDITIONAL = "conditional"
+    ITERATIVE = "iterative"
+
+@dataclass
+class IterativeLoopConfig:
+    """Configuration for iterative loop participants."""
+    improver_agent: str  # Agent that generates/improves content
+    evaluator_agent: str  # Agent that evaluates and provides feedback
+    max_iterations: int = 3
+    quality_threshold: float = 85.0
+    timeout_per_iteration: int = 300
 
 @dataclass
 class PipelineStep:
@@ -27,11 +37,20 @@ class PipelineStep:
     retry_count: int = 0
     conditions: Optional[Dict[str, Any]] = None
     parameters: Optional[Dict[str, Any]] = None
+    iterative_config: Optional[IterativeLoopConfig] = None  # For iterative steps
     
     def __post_init__(self):
         """Validate step configuration after initialization."""
         if isinstance(self.execution_mode, str):
             self.execution_mode = ExecutionMode(self.execution_mode)
+        
+        # Validate iterative configuration
+        if self.execution_mode == ExecutionMode.ITERATIVE and not self.iterative_config:
+            raise ValueError(f"Iterative step '{self.agent_type}' requires iterative_config")
+    
+    def is_iterative(self) -> bool:
+        """Check if this step is an iterative loop."""
+        return self.execution_mode == ExecutionMode.ITERATIVE and self.iterative_config is not None
 
 @dataclass
 class PipelineConfig:
@@ -190,6 +209,18 @@ class PipelineConfigManager:
             # Parse steps
             steps = []
             for step_data in data.get('steps', []):
+                # Parse iterative configuration if present
+                iterative_config = None
+                if step_data.get('execution_mode') == 'iterative' and 'iterative_config' in step_data:
+                    iter_data = step_data['iterative_config']
+                    iterative_config = IterativeLoopConfig(
+                        improver_agent=iter_data['improver_agent'],
+                        evaluator_agent=iter_data['evaluator_agent'],
+                        max_iterations=iter_data.get('max_iterations', 3),
+                        quality_threshold=iter_data.get('quality_threshold', 85.0),
+                        timeout_per_iteration=iter_data.get('timeout_per_iteration', 300)
+                    )
+                
                 step = PipelineStep(
                     agent_type=step_data['agent_type'],
                     config_type=step_data.get('config_type', 'standard'),
@@ -199,7 +230,8 @@ class PipelineConfigManager:
                     timeout_seconds=step_data.get('timeout_seconds'),
                     retry_count=step_data.get('retry_count', 0),
                     conditions=step_data.get('conditions'),
-                    parameters=step_data.get('parameters')
+                    parameters=step_data.get('parameters'),
+                    iterative_config=iterative_config
                 )
                 steps.append(step)
             
@@ -310,6 +342,14 @@ class PipelineConfigManager:
                     step_dict["conditions"] = step.conditions
                 if step.parameters:
                     step_dict["parameters"] = step.parameters
+                if step.iterative_config:
+                    step_dict["iterative_config"] = {
+                        "improver_agent": step.iterative_config.improver_agent,
+                        "evaluator_agent": step.iterative_config.evaluator_agent,
+                        "max_iterations": step.iterative_config.max_iterations,
+                        "quality_threshold": step.iterative_config.quality_threshold,
+                        "timeout_per_iteration": step.iterative_config.timeout_per_iteration
+                    }
                 
                 config_dict["steps"].append(step_dict)
             

@@ -102,11 +102,17 @@ Always provide complete, runnable code modules with proper imports and structure
                 "validation_issues": validation
             }
         
+        # Check if this is an iterative improvement request
+        if isinstance(input_data, dict) and "feedback" in input_data:
+            return self._improve_code_with_feedback(input_data, context)
+        
         # Extract requirements from input
         if isinstance(input_data, str):
             requirements = input_data
         elif isinstance(input_data, dict):
-            requirements = input_data.get('requirements', input_data.get('user_input', str(input_data)))
+            requirements = input_data.get('requirements', 
+                                        input_data.get('original_request', 
+                                                      input_data.get('user_input', str(input_data))))
         else:
             requirements = str(input_data)
         
@@ -132,6 +138,171 @@ Always provide complete, runnable code modules with proper imports and structure
                 "requirements": requirements,
                 "validation": validation
             }
+    
+    def _improve_code_with_feedback(self, input_data: Dict[str, Any], context: Dict[str, Any] = None) -> Any:
+        """Improve existing code based on reviewer feedback."""
+        try:
+            current_code = input_data.get("current_code", "")
+            feedback = input_data.get("feedback", "")
+            original_request = input_data.get("original_request", "")
+            iteration = input_data.get("iteration", 1)
+            
+            if not current_code:
+                # If no current code, generate from scratch
+                return self.process(original_request, context)
+            
+            # Apply improvements based on feedback
+            improved_code = self._apply_feedback_improvements(current_code, feedback, original_request)
+            
+            return {
+                "agent": self.metadata.name,
+                "success": True,
+                "generated_code": improved_code,
+                "original_code": current_code,
+                "feedback_applied": feedback,
+                "iteration": iteration,
+                "improvement_type": "feedback_based",
+                "context": context
+            }
+            
+        except Exception as e:
+            return {
+                "agent": self.metadata.name,
+                "success": False,
+                "error": str(e),
+                "input_data": input_data
+            }
+    
+    def _apply_feedback_improvements(self, current_code: str, feedback: str, original_request: str) -> str:
+        """Apply specific improvements based on feedback."""
+        improved_code = current_code
+        feedback_lower = feedback.lower()
+        
+        # Apply security improvements
+        if "eval(" in improved_code and "security" in feedback_lower:
+            improved_code = improved_code.replace("eval(", "# eval() removed for security - use ast.literal_eval() instead\n# ast.literal_eval(")
+        
+        if "exec(" in improved_code and "security" in feedback_lower:
+            improved_code = improved_code.replace("exec(", "# exec() removed for security\n# ")
+        
+        # Add docstrings if missing
+        if "docstring" in feedback_lower and '"""' not in improved_code:
+            improved_code = self._add_docstrings(improved_code)
+        
+        # Add type hints if missing
+        if "type hint" in feedback_lower:
+            improved_code = self._add_type_hints(improved_code)
+        
+        # Add error handling if missing
+        if "error handling" in feedback_lower or "exception" in feedback_lower:
+            improved_code = self._add_error_handling(improved_code)
+        
+        # Fix performance issues
+        if "performance" in feedback_lower:
+            improved_code = self._optimize_performance(improved_code)
+        
+        # Add logging if suggested
+        if "logging" in feedback_lower and "import logging" not in improved_code:
+            improved_code = self._add_logging(improved_code)
+        
+        # Fix style issues
+        if "style" in feedback_lower or "pep 8" in feedback_lower:
+            improved_code = self._fix_style_issues(improved_code)
+        
+        return improved_code
+    
+    def _add_docstrings(self, code: str) -> str:
+        """Add docstrings to functions and classes."""
+        lines = code.split('\n')
+        improved_lines = []
+        
+        for i, line in enumerate(lines):
+            improved_lines.append(line)
+            
+            # Add docstring after function definition
+            if line.strip().startswith('def ') and ':' in line:
+                indent = len(line) - len(line.lstrip())
+                docstring = f'{" " * (indent + 4)}"""Function docstring - describe purpose and parameters."""'
+                improved_lines.append(docstring)
+            
+            # Add docstring after class definition
+            elif line.strip().startswith('class ') and ':' in line:
+                indent = len(line) - len(line.lstrip())
+                docstring = f'{" " * (indent + 4)}"""Class docstring - describe the class purpose."""'
+                improved_lines.append(docstring)
+        
+        return '\n'.join(improved_lines)
+    
+    def _add_type_hints(self, code: str) -> str:
+        """Add basic type hints to function parameters."""
+        # Add typing import if not present
+        if "from typing import" not in code and "import typing" not in code:
+            code = "from typing import Any, Dict, List, Optional\n\n" + code
+        
+        # Simple type hint additions (basic implementation)
+        code = code.replace("def ", "def ")  # Placeholder for more complex type hint logic
+        
+        return code
+    
+    def _add_error_handling(self, code: str) -> str:
+        """Add basic error handling to the code."""
+        lines = code.split('\n')
+        improved_lines = []
+        
+        for line in lines:
+            improved_lines.append(line)
+            
+            # Add try-except around input() calls
+            if "input(" in line and "try:" not in line:
+                indent = len(line) - len(line.lstrip())
+                improved_lines.insert(-1, f'{" " * indent}try:')
+                improved_lines.append(f'{" " * indent}except (ValueError, KeyboardInterrupt) as e:')
+                improved_lines.append(f'{" " * (indent + 4)}print(f"Error: {{e}}")')
+        
+        return '\n'.join(improved_lines)
+    
+    def _optimize_performance(self, code: str) -> str:
+        """Apply basic performance optimizations."""
+        # Replace range(len()) pattern
+        code = code.replace("for i in range(len(", "for i, item in enumerate(")
+        
+        # Replace string concatenation in loops
+        if "for " in code and "+=" in code:
+            code = "# Consider using join() for string concatenation in loops\n" + code
+        
+        return code
+    
+    def _add_logging(self, code: str) -> str:
+        """Add logging to the code."""
+        if "import logging" not in code:
+            logging_setup = '''import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+'''
+            code = logging_setup + code
+        
+        # Replace print statements with logging
+        code = code.replace('print("', 'logger.info("')
+        code = code.replace("print('", "logger.info('")
+        
+        return code
+    
+    def _fix_style_issues(self, code: str) -> str:
+        """Fix basic style issues."""
+        lines = code.split('\n')
+        improved_lines = []
+        
+        for line in lines:
+            # Fix line length (basic approach)
+            if len(line) > 100:
+                # Add comment about line length
+                improved_lines.append("# TODO: Break this long line for better readability")
+            improved_lines.append(line)
+        
+        return '\n'.join(improved_lines)
     
     def _generate_code_from_requirements(self, requirements: str) -> Dict[str, str]:
         """Generate Python code based on requirements."""

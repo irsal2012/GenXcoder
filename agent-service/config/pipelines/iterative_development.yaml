@@ -1,0 +1,73 @@
+name: iterative_development
+description: Development pipeline with iterative code improvement loop between Python coder and code reviewer
+version: 1.0.0
+global_timeout_seconds: 1800
+max_parallel_steps: 3
+failure_strategy: stop
+metadata:
+  author: GenXcoder
+  purpose: Iterative code generation with quality feedback loops
+  features:
+    - iterative_coding_loop
+    - quality_assessment
+    - feedback_driven_improvement
+
+steps:
+  # Step 1: Analyze requirements
+  - agent_type: requirement_analyst
+    config_type: standard
+    execution_mode: sequential
+    optional: false
+    timeout_seconds: 300
+
+  # Step 2: Iterative coding loop (Python coder + Code reviewer)
+  - agent_type: iterative_coding_loop
+    config_type: coding
+    execution_mode: iterative
+    depends_on:
+      - requirement_analyst
+    optional: false
+    timeout_seconds: 900
+    iterative_config:
+      improver_agent: python_coder
+      evaluator_agent: code_reviewer
+      max_iterations: 3
+      quality_threshold: 85.0
+      timeout_per_iteration: 300
+
+  # Step 3: Generate tests (parallel with documentation)
+  - agent_type: test_generator
+    config_type: coding
+    execution_mode: parallel
+    depends_on:
+      - iterative_coding_loop
+    optional: false
+    timeout_seconds: 300
+
+  # Step 4: Write documentation (parallel with test generation)
+  - agent_type: documentation_writer
+    config_type: creative
+    execution_mode: parallel
+    depends_on:
+      - iterative_coding_loop
+    optional: false
+    timeout_seconds: 300
+
+  # Step 5: Prepare deployment
+  - agent_type: deployment_engineer
+    config_type: standard
+    execution_mode: sequential
+    depends_on:
+      - test_generator
+      - documentation_writer
+    optional: false
+    timeout_seconds: 300
+
+  # Step 6: Design UI (if applicable)
+  - agent_type: ui_designer
+    config_type: creative
+    execution_mode: sequential
+    depends_on:
+      - deployment_engineer
+    optional: true
+    timeout_seconds: 300

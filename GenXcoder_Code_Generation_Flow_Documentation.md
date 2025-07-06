@@ -8,15 +8,16 @@
 1. [Executive Summary](#executive-summary)
 2. [System Overview](#system-overview)
 3. [Agent Execution Details](#agent-execution-details)
-4. [Progress Tracking Mechanism](#progress-tracking-mechanism)
-5. [Result Storage System](#result-storage-system)
-6. [Agent Factory Pattern](#agent-factory-pattern)
-7. [Event-Driven Architecture](#event-driven-architecture)
-8. [Complete Data Flow](#complete-data-flow)
-9. [Performance Optimizations](#performance-optimizations)
-10. [Technical Specifications](#technical-specifications)
-11. [Code Examples](#code-examples)
-12. [Best Practices](#best-practices)
+4. [Iterative Code Improvement System](#iterative-code-improvement-system)
+5. [Progress Tracking Mechanism](#progress-tracking-mechanism)
+6. [Result Storage System](#result-storage-system)
+7. [Agent Factory Pattern](#agent-factory-pattern)
+8. [Event-Driven Architecture](#event-driven-architecture)
+9. [Complete Data Flow](#complete-data-flow)
+10. [Performance Optimizations](#performance-optimizations)
+11. [Technical Specifications](#technical-specifications)
+12. [Code Examples](#code-examples)
+13. [Best Practices](#best-practices)
 
 ---
 
@@ -26,9 +27,11 @@ GenXcoder is a sophisticated AI-powered code generation platform that transforms
 
 ### Key Features:
 - **Multi-Agent Pipeline**: 7 specialized AI agents working in sequence
+- **Iterative Code Improvement**: Feedback-driven loops between coder and reviewer agents
 - **Real-time Progress Tracking**: Live updates with intelligent polling
 - **Event-Driven Communication**: Decoupled agent coordination
 - **Dynamic Agent Creation**: Factory pattern with auto-discovery
+- **Quality Assurance**: Configurable quality thresholds and metrics
 - **Comprehensive Output**: Code, tests, docs, and deployment configs
 - **Production-Ready Code**: PEP 8 compliant with type hints and error handling
 
@@ -192,6 +195,314 @@ Deployment Engineer
         ↓
 UI Designer
 ```
+
+---
+
+## Iterative Code Improvement System
+
+### Overview
+
+GenXcoder features an advanced iterative code improvement system that enables feedback-driven loops between agents to produce the highest quality code possible. The system allows the Python coder and code reviewer agents to collaborate iteratively, with the reviewer providing structured feedback and the coder making targeted improvements until quality thresholds are met.
+
+### Key Components
+
+#### 1. Structured Feedback System
+The system uses comprehensive feedback structures to enable precise communication between agents:
+
+```python
+@dataclass
+class StructuredFeedback:
+    """Structured feedback from reviewer agents."""
+    quality_score: float  # 0-100 overall quality score
+    quality_metrics: QualityMetrics
+    issues: List[FeedbackIssue] = field(default_factory=list)
+    suggestions: List[str] = field(default_factory=list)
+    positive_aspects: List[str] = field(default_factory=list)
+    iteration_number: int = 1
+    reviewer_agent: str = ""
+    timestamp: Optional[str] = None
+```
+
+#### 2. Quality Metrics Assessment
+Comprehensive quality evaluation across multiple dimensions:
+
+- **Complexity Score** (0-100): Code complexity and structure analysis
+- **Maintainability Score** (0-100): Ease of maintenance and modification
+- **Readability Score** (0-100): Code clarity and documentation quality
+- **Test Coverage** (0-100): Testability and test presence estimation
+- **Performance Score** (0-100): Efficiency and optimization assessment
+- **Security Score** (0-100): Security best practices adherence
+
+#### 3. Issue Categorization
+Structured issue identification with severity levels:
+
+- **Critical**: Security vulnerabilities, major bugs
+- **High**: Performance problems, architecture concerns
+- **Medium**: Style violations, minor improvements
+- **Low**: Cosmetic issues, suggestions
+- **Info**: General information and tips
+
+### Iterative Pipeline Configuration
+
+#### Enhanced Pipeline Steps
+```yaml
+# Iterative development pipeline configuration
+steps:
+  - agent_type: requirement_analyst
+    config_type: standard
+    execution_mode: sequential
+
+  - agent_type: iterative_coding_loop
+    config_type: coding
+    execution_mode: iterative
+    depends_on: [requirement_analyst]
+    iterative_config:
+      improver_agent: python_coder
+      evaluator_agent: code_reviewer
+      max_iterations: 3
+      quality_threshold: 85.0
+      timeout_per_iteration: 300
+
+  - agent_type: test_generator
+    depends_on: [iterative_coding_loop]
+    execution_mode: parallel
+```
+
+#### Configuration Parameters
+- **`improver_agent`**: Agent that generates/improves content (e.g., python_coder)
+- **`evaluator_agent`**: Agent that evaluates and provides feedback (e.g., code_reviewer)
+- **`max_iterations`**: Maximum number of improvement cycles (default: 3)
+- **`quality_threshold`**: Minimum quality score to exit loop (default: 85.0)
+- **`timeout_per_iteration`**: Timeout per iteration in seconds (default: 300)
+
+### Execution Flow
+
+#### 1. Initial Code Generation
+```
+User Requirements → Requirement Analyst → Python Coder (Initial Code)
+```
+
+#### 2. Iterative Improvement Loop
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Iterative Loop                           │
+│                                                             │
+│  Python Coder → Code Reviewer → Quality Assessment         │
+│       ↑              ↓              ↓                      │
+│       │         Structured      Quality Score              │
+│       │         Feedback        ≥ Threshold?               │
+│       │              ↓              ↓                      │
+│       └──────── Apply Fixes ←── No (Continue)              │
+│                                     ↓                      │
+│                                Yes (Exit)                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 3. Iteration Process
+1. **Code Generation**: Python coder generates or improves code
+2. **Quality Review**: Code reviewer analyzes code and assigns quality scores
+3. **Feedback Processing**: Structured feedback with specific improvement suggestions
+4. **Threshold Check**: Compare quality score against configured threshold
+5. **Improvement Application**: Python coder applies targeted fixes based on feedback
+6. **Loop Continuation**: Repeat until threshold met or max iterations reached
+
+### Code Improvement Strategies
+
+#### Security Enhancements
+```python
+# Before (flagged by reviewer)
+user_input = eval(input("Enter expression: "))
+
+# After (improved by coder)
+import ast
+try:
+    user_input = ast.literal_eval(input("Enter expression: "))
+except (ValueError, SyntaxError) as e:
+    logger.error(f"Invalid input: {e}")
+    user_input = None
+```
+
+#### Documentation Improvements
+```python
+# Before (missing docstrings)
+def calculate(a, b, op):
+    if op == '+':
+        return a + b
+
+# After (comprehensive documentation)
+def calculate(a: Union[int, float], b: Union[int, float], op: str) -> Union[int, float]:
+    """Perform arithmetic calculation between two numbers.
+    
+    Args:
+        a: First operand
+        b: Second operand
+        op: Operation to perform ('+', '-', '*', '/')
+        
+    Returns:
+        Result of the arithmetic operation
+        
+    Raises:
+        ValueError: If operation is not supported
+        ZeroDivisionError: If division by zero is attempted
+    """
+    if op == '+':
+        return a + b
+```
+
+#### Performance Optimizations
+```python
+# Before (inefficient loop pattern)
+for i in range(len(items)):
+    process(items[i])
+
+# After (optimized iteration)
+for item in items:
+    process(item)
+```
+
+### Quality Assessment Examples
+
+#### High-Quality Code (Score: 92/100)
+```python
+"""
+High-quality calculator module with comprehensive error handling,
+documentation, and type hints.
+"""
+
+import logging
+from typing import Union, Dict, Any
+from decimal import Decimal, InvalidOperation
+
+logger = logging.getLogger(__name__)
+
+class Calculator:
+    """Professional calculator with robust error handling."""
+    
+    def __init__(self) -> None:
+        """Initialize calculator with operation history."""
+        self.history: List[Dict[str, Any]] = []
+        logger.info("Calculator initialized")
+    
+    def add(self, a: Union[int, float, Decimal], b: Union[int, float, Decimal]) -> Union[int, float, Decimal]:
+        """Add two numbers with comprehensive error handling."""
+        try:
+            result = a + b
+            self._log_operation(a, b, '+', result)
+            return result
+        except (TypeError, OverflowError) as e:
+            logger.error(f"Addition failed: {e}")
+            raise ValueError(f"Cannot add {a} and {b}: {e}")
+```
+
+#### Feedback for Improvement (Score: 65/100)
+```json
+{
+  "quality_score": 65.0,
+  "issues": [
+    {
+      "type": "security",
+      "severity": "critical",
+      "message": "Use of eval() function poses security risk",
+      "suggestion": "Replace eval() with ast.literal_eval() for safe evaluation"
+    },
+    {
+      "type": "maintainability",
+      "severity": "medium",
+      "message": "Functions lack docstrings",
+      "suggestion": "Add comprehensive docstrings with Args, Returns, and Raises sections"
+    }
+  ],
+  "suggestions": [
+    "Add type hints for better code clarity",
+    "Implement proper error handling with try-catch blocks",
+    "Consider using logging instead of print statements"
+  ]
+}
+```
+
+### Benefits of Iterative System
+
+#### 1. Quality Assurance
+- **Guaranteed Standards**: Code must meet quality thresholds before proceeding
+- **Comprehensive Analysis**: Multi-dimensional quality assessment
+- **Continuous Improvement**: Each iteration produces better code
+
+#### 2. Automated Code Review
+- **Consistent Standards**: Automated application of coding best practices
+- **Security Focus**: Automatic detection and fixing of security vulnerabilities
+- **Performance Optimization**: Identification and resolution of performance issues
+
+#### 3. Learning and Adaptation
+- **Pattern Recognition**: System learns from feedback patterns
+- **Improvement Tracking**: Detailed metrics on quality improvements
+- **Trend Analysis**: Quality improvement trends across iterations
+
+#### 4. Transparency and Monitoring
+- **Real-time Progress**: Live updates on iteration progress
+- **Quality Metrics**: Detailed quality scores and improvement trends
+- **Iteration History**: Complete record of improvements made
+
+### Integration with Existing Pipeline
+
+The iterative system seamlessly integrates with the existing GenXcoder pipeline:
+
+```
+Requirement Analyst
+        ↓
+┌─────────────────────┐
+│ Iterative Loop      │
+│ ┌─────────────────┐ │
+│ │ Python Coder    │ │ ← Iteration 1
+│ │       ↓         │ │
+│ │ Code Reviewer   │ │
+│ └─────────────────┘ │
+│ ┌─────────────────┐ │
+│ │ Python Coder    │ │ ← Iteration 2
+│ │       ↓         │ │
+│ │ Code Reviewer   │ │
+│ └─────────────────┘ │
+│ ┌─────────────────┐ │
+│ │ Python Coder    │ │ ← Iteration 3
+│ │       ↓         │ │
+│ │ Code Reviewer   │ │
+│ └─────────────────┘ │
+└─────────────────────┘
+        ↓
+Test Generator (parallel)
+        ↓
+Documentation Writer (parallel)
+        ↓
+Deployment Engineer
+        ↓
+UI Designer
+```
+
+### Performance Considerations
+
+#### Timeout Management
+- **Per-iteration timeouts**: Prevent infinite loops
+- **Adaptive timeouts**: Longer timeouts for complex improvements
+- **Graceful degradation**: Return best available code if timeouts occur
+
+#### Resource Optimization
+- **Parallel processing**: Multiple improvement strategies applied simultaneously
+- **Caching**: Reuse of analysis results across iterations
+- **Memory management**: Efficient handling of iteration history
+
+### Future Enhancements
+
+#### Planned Features
+1. **Multi-Agent Loops**: Support for more than two agents in improvement cycles
+2. **Adaptive Thresholds**: Dynamic quality threshold adjustment based on project complexity
+3. **Learning System**: Machine learning-based improvement pattern recognition
+4. **Custom Metrics**: User-defined quality metrics and scoring systems
+5. **Visual Progress**: Real-time visualization of quality improvements
+
+#### Integration Opportunities
+1. **IDE Integration**: Real-time code improvement suggestions in development environments
+2. **CI/CD Pipelines**: Automated quality gates in deployment workflows
+3. **Code Review Tools**: Integration with existing code review platforms
+4. **Quality Dashboards**: Centralized monitoring of code quality trends
 
 ---
 

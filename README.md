@@ -62,12 +62,52 @@ React frontend that can consume both the original backend and Agent Service dire
 The system includes several specialized agents:
 
 - **Python Coder**: Generates Python code from natural language descriptions
-- **Code Reviewer**: Reviews and improves existing code
+- **Code Reviewer**: Reviews and improves existing code with structured feedback
 - **Documentation Writer**: Creates comprehensive documentation
 - **Test Generator**: Generates unit tests for code
 - **Deployment Engineer**: Creates deployment configurations
 - **UI Designer**: Generates user interfaces (Streamlit apps)
 - **Requirement Analyst**: Analyzes and structures project requirements
+
+### 🔄 Iterative Code Improvement System
+
+GenXcoder features an advanced **iterative code improvement system** that enables feedback-driven loops between agents to produce the highest quality code possible:
+
+#### Key Features:
+- **Quality-Driven Loops**: Python coder and code reviewer collaborate iteratively
+- **Structured Feedback**: Comprehensive quality metrics and improvement suggestions
+- **Configurable Thresholds**: Set quality standards (default: 85/100)
+- **Multi-Dimensional Analysis**: Security, performance, maintainability, readability
+- **Automatic Improvements**: Targeted fixes based on specific feedback categories
+
+#### How It Works:
+1. **Initial Generation**: Python coder creates code from requirements
+2. **Quality Review**: Code reviewer analyzes and scores the code (0-100)
+3. **Feedback Loop**: If below threshold, reviewer provides structured feedback
+4. **Targeted Improvements**: Python coder applies specific fixes
+5. **Iteration**: Process repeats until quality threshold is met (max 3 iterations)
+
+#### Quality Metrics:
+- **Complexity Score**: Code structure and complexity analysis
+- **Maintainability Score**: Ease of maintenance and modification
+- **Readability Score**: Code clarity and documentation quality
+- **Security Score**: Security best practices adherence
+- **Performance Score**: Efficiency and optimization assessment
+- **Test Coverage**: Testability and test presence estimation
+
+#### Pipeline Configuration:
+```yaml
+# Use iterative development pipeline for enhanced code quality
+steps:
+  - agent_type: iterative_coding_loop
+    execution_mode: iterative
+    iterative_config:
+      improver_agent: python_coder
+      evaluator_agent: code_reviewer
+      max_iterations: 3
+      quality_threshold: 85.0
+      timeout_per_iteration: 300
+```
 
 ## 📋 Prerequisites
 

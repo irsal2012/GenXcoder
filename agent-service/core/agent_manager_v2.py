@@ -8,6 +8,8 @@ from typing import Dict, List, Optional, Any
 from core.agent_factory import agent_factory
 from core.events import event_bus, EventType, AgentEvent, publish_agent_started, publish_agent_completed, publish_agent_failed
 from config.pipeline_config import pipeline_config_manager, PipelineConfig, ExecutionMode
+from core.iterative_executor import iterative_executor
+from models.feedback import IterativeLoopResult
 from agents.base import BaseAgent
 import time
 
@@ -61,19 +63,44 @@ class AgentManagerV2:
             
             # Create agents based on pipeline configuration
             for step in self._pipeline_config.steps:
-                agent_key = step.agent_type
-                
-                try:
-                    # Create agent using factory
-                    agent = agent_factory.create_agent(agent_key)
-                    self._active_agents[agent_key] = agent
+                if step.is_iterative():
+                    # For iterative steps, initialize both improver and evaluator agents
+                    iter_config = step.iterative_config
                     
-                    self.logger.info(f"Initialized agent: {agent.metadata.name}")
+                    # Initialize improver agent
+                    try:
+                        improver_agent = agent_factory.create_agent(iter_config.improver_agent)
+                        self._active_agents[iter_config.improver_agent] = improver_agent
+                        self.logger.info(f"Initialized improver agent: {improver_agent.metadata.name}")
+                    except Exception as e:
+                        self.logger.error(f"Failed to initialize improver agent {iter_config.improver_agent}: {str(e)}")
+                        if not step.optional:
+                            return False
                     
-                except Exception as e:
-                    self.logger.error(f"Failed to initialize agent {agent_key}: {str(e)}")
-                    if not step.optional:
-                        return False
+                    # Initialize evaluator agent
+                    try:
+                        evaluator_agent = agent_factory.create_agent(iter_config.evaluator_agent)
+                        self._active_agents[iter_config.evaluator_agent] = evaluator_agent
+                        self.logger.info(f"Initialized evaluator agent: {evaluator_agent.metadata.name}")
+                    except Exception as e:
+                        self.logger.error(f"Failed to initialize evaluator agent {iter_config.evaluator_agent}: {str(e)}")
+                        if not step.optional:
+                            return False
+                else:
+                    # Regular step - initialize single agent
+                    agent_key = step.agent_type
+                    
+                    try:
+                        # Create agent using factory
+                        agent = agent_factory.create_agent(agent_key)
+                        self._active_agents[agent_key] = agent
+                        
+                        self.logger.info(f"Initialized agent: {agent.metadata.name}")
+                        
+                    except Exception as e:
+                        self.logger.error(f"Failed to initialize agent {agent_key}: {str(e)}")
+                        if not step.optional:
+                            return False
             
             # Initialize progress tracking
             self._initialize_progress_tracking()
@@ -235,11 +262,18 @@ class AgentManagerV2:
     
     async def _execute_single_step(self, step_name: str, input_data: Any, correlation_id: str) -> Any:
         """Execute a single pipeline step."""
+        step_config = self._pipeline_config.get_step(step_name)
+        if not step_config:
+            raise ValueError(f"Step configuration for {step_name} not found")
+        
+        # Check if this is an iterative step
+        if step_config.is_iterative():
+            return await self._execute_iterative_step(step_config, input_data, correlation_id)
+        
+        # Regular step execution
         agent = self._active_agents.get(step_name)
         if not agent:
             raise ValueError(f"Agent {step_name} not found in active agents")
-        
-        step_config = self._pipeline_config.get_step(step_name)
         
         try:
             # Update progress
@@ -279,6 +313,114 @@ class AgentManagerV2:
                 return {"error": str(e), "optional": True}
             else:
                 raise
+    
+    async def _execute_iterative_step(self, step_config, input_data: Any, correlation_id: str) -> Any:
+        """Execute an iterative step with feedback loop."""
+        if not step_config.iterative_config:
+            raise ValueError(f"Iterative step {step_config.agent_type} missing iterative configuration")
+        
+        iter_config = step_config.iterative_config
+        
+        # Get the improver and evaluator agents
+        improver_agent = self._active_agents.get(iter_config.improver_agent)
+        evaluator_agent = self._active_agents.get(iter_config.evaluator_agent)
+        
+        if not improver_agent:
+            raise ValueError(f"Improver agent {iter_config.improver_agent} not found in active agents")
+        if not evaluator_agent:
+            raise ValueError(f"Evaluator agent {iter_config.evaluator_agent} not found in active agents")
+        
+        try:
+            # Update progress
+            self._update_step_progress(step_config.agent_type, "running", 0)
+            
+            # Publish iterative step started event
+            await publish_agent_started(f"{improver_agent.metadata.name}+{evaluator_agent.metadata.name}", 
+                                      correlation_id, step_name=step_config.agent_type)
+            
+            # Execute iterative loop
+            self.logger.info(f"Executing iterative step: {step_config.agent_type}")
+            loop_result = await iterative_executor.execute_iterative_loop(
+                loop_name=step_config.agent_type,
+                improver_agent=improver_agent,
+                evaluator_agent=evaluator_agent,
+                initial_input=input_data,
+                max_iterations=iter_config.max_iterations,
+                quality_threshold=iter_config.quality_threshold,
+                timeout_per_iteration=iter_config.timeout_per_iteration,
+                correlation_id=correlation_id
+            )
+            
+            # Update progress based on loop result
+            if loop_result.threshold_met or loop_result.final_output:
+                self._update_step_progress(step_config.agent_type, "completed", 100)
+                self._progress_data['completed_steps'] += 1
+                
+                # Publish step completed event with loop details
+                await publish_agent_completed(
+                    f"{improver_agent.metadata.name}+{evaluator_agent.metadata.name}",
+                    {
+                        "final_output": loop_result.final_output,
+                        "loop_result": loop_result.to_dict()
+                    },
+                    correlation_id,
+                    step_name=step_config.agent_type
+                )
+                
+                self.logger.info(f"Iterative step {step_config.agent_type} completed successfully")
+                self.logger.info(f"Quality improvement: {loop_result.get_quality_improvement():.1f} points")
+                
+                return {
+                    "output": loop_result.final_output,
+                    "iterative_result": loop_result.to_dict(),
+                    "quality_score": loop_result.final_quality_score,
+                    "iterations_completed": loop_result.total_iterations,
+                    "threshold_met": loop_result.threshold_met
+                }
+            else:
+                # Loop failed or didn't produce output
+                self._update_step_progress(step_config.agent_type, "failed", 0)
+                self._progress_data['failed_steps'] += 1
+                self._progress_data['has_failures'] = True
+                
+                error_msg = f"Iterative loop failed to produce valid output after {loop_result.total_iterations} iterations"
+                await publish_agent_failed(
+                    f"{improver_agent.metadata.name}+{evaluator_agent.metadata.name}",
+                    error_msg,
+                    correlation_id,
+                    step_name=step_config.agent_type
+                )
+                
+                if step_config.optional:
+                    self.logger.warning(f"Optional iterative step {step_config.agent_type} failed")
+                    return {"error": error_msg, "optional": True, "loop_result": loop_result.to_dict()}
+                else:
+                    raise Exception(error_msg)
+                    
+        except Exception as e:
+            # Update progress
+            self._update_step_progress(step_config.agent_type, "failed", 0)
+            self._progress_data['failed_steps'] += 1
+            self._progress_data['has_failures'] = True
+            self._update_overall_progress()
+            
+            # Publish step failed event
+            await publish_agent_failed(
+                f"{improver_agent.metadata.name}+{evaluator_agent.metadata.name}",
+                str(e),
+                correlation_id,
+                step_name=step_config.agent_type
+            )
+            
+            # Handle failure based on strategy
+            if step_config.optional:
+                self.logger.warning(f"Optional iterative step {step_config.agent_type} failed: {str(e)}")
+                return {"error": str(e), "optional": True}
+            else:
+                raise
+        
+        finally:
+            self._update_overall_progress()
     
     def _update_step_progress(self, step_name: str, status: str, progress: int):
         """Update progress for a specific step."""
