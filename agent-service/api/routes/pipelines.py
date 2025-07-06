@@ -56,13 +56,14 @@ async def execute_pipeline(
             "progress": agent_manager_v2.get_progress()
         }
         
-        # Execute pipeline in background if async requested
+            # Execute pipeline in background if async requested
         if request.async_execution:
             background_tasks.add_task(
                 _execute_pipeline_background,
                 execution_id,
                 request.input_data,
-                request.correlation_id
+                request.correlation_id,
+                pipeline_name
             )
             
             return PipelineExecutionResponse(
@@ -340,9 +341,15 @@ async def list_pipeline_executions():
 async def _execute_pipeline_background(
     execution_id: str,
     input_data: Any,
-    correlation_id: Optional[str] = None
+    correlation_id: Optional[str] = None,
+    pipeline_name: str = "default"
 ):
     """Background task for executing pipelines asynchronously."""
+    import httpx
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
     try:
         result = await agent_manager_v2.execute_pipeline(input_data, correlation_id)
         
@@ -353,6 +360,37 @@ async def _execute_pipeline_background(
             "result": result,
             "progress": agent_manager_v2.get_progress()
         })
+        
+        # If pipeline completed successfully, save to backend
+        if result.get("success"):
+            try:
+                # Prepare data for backend
+                project_data = {
+                    "execution_id": execution_id,
+                    "pipeline_name": pipeline_name,
+                    "input_data": input_data,
+                    "status": "completed",
+                    "started_at": pipeline_execution_store[execution_id]["started_at"],
+                    "completed_at": pipeline_execution_store[execution_id]["completed_at"],
+                    "result": result.get("results", {})
+                }
+                
+                # Call backend to save the project
+                async with httpx.AsyncClient() as client:
+                    backend_response = await client.post(
+                        "http://localhost:8000/api/v1/projects/save-generated",
+                        json=project_data,
+                        timeout=30.0
+                    )
+                    
+                    if backend_response.status_code == 200:
+                        logger.info(f"Successfully saved project {execution_id} to backend")
+                    else:
+                        logger.warning(f"Failed to save project {execution_id} to backend: {backend_response.status_code}")
+                        
+            except Exception as save_error:
+                logger.error(f"Error saving project {execution_id} to backend: {str(save_error)}")
+                # Don't fail the pipeline execution if saving fails
         
     except Exception as e:
         # Update execution store with error

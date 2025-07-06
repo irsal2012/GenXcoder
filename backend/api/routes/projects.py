@@ -195,6 +195,94 @@ async def cleanup_old_projects(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to cleanup projects: {str(e)}")
 
+@router.post("/save-generated")
+async def save_generated_project(
+    project_data: dict,
+    project_service: ProjectService = Depends(get_project_service)
+):
+    """
+    Save a generated project from the agent service.
+    
+    This endpoint receives project data from the agent service and saves it
+    to the backend storage system.
+    """
+    try:
+        # Extract project information
+        project_id = project_data.get('execution_id') or project_data.get('project_id')
+        if not project_id:
+            raise HTTPException(status_code=400, detail="Missing project_id or execution_id")
+        
+        # Transform agent service result format to backend format
+        transformed_data = {
+            'project_id': project_id,
+            'project_name': project_data.get('pipeline_name', f'project-{project_id[:8]}'),
+            'user_input': project_data.get('input_data', ''),
+            'timestamp': project_data.get('completed_at') or project_data.get('started_at'),
+            'success': project_data.get('status') == 'completed',
+            'execution_time': 0,  # Calculate if needed
+            'generated_files': {},
+            'code': {},
+            'documentation': {},
+            'tests': {},
+            'deployment': {},
+            'ui': {},
+            'pipeline_metadata': project_data.get('result', {})
+        }
+        
+        # Extract generated files from agent results
+        result = project_data.get('result', {})
+        if isinstance(result, dict):
+            # Look for generated code in various agent results
+            for agent_name, agent_result in result.items():
+                if isinstance(agent_result, dict) and 'generated_code' in agent_result:
+                    generated_code = agent_result['generated_code']
+                    if isinstance(generated_code, dict):
+                        transformed_data['generated_files'].update(generated_code)
+                        if agent_name == 'python_coder':
+                            transformed_data['code'] = {
+                                'final_code': '\n'.join(generated_code.values()) if generated_code else '',
+                                'generated_files': generated_code
+                            }
+                
+                # Extract documentation
+                if isinstance(agent_result, dict) and 'documentation' in agent_result:
+                    transformed_data['documentation'] = {
+                        'readme': agent_result['documentation']
+                    }
+                
+                # Extract tests
+                if isinstance(agent_result, dict) and 'test_code' in agent_result:
+                    transformed_data['tests'] = {
+                        'test_code': agent_result['test_code']
+                    }
+                
+                # Extract deployment configs
+                if isinstance(agent_result, dict) and 'deployment_config' in agent_result:
+                    transformed_data['deployment'] = {
+                        'deployment_configs': agent_result['deployment_config']
+                    }
+                
+                # Extract UI code
+                if isinstance(agent_result, dict) and 'ui_code' in agent_result:
+                    transformed_data['ui'] = {
+                        'streamlit_app': agent_result['ui_code']
+                    }
+        
+        # Save the project using the project service
+        saved_path = await project_service.save_project_result(project_id, transformed_data)
+        
+        return {
+            "success": True,
+            "project_id": project_id,
+            "message": "Project saved successfully",
+            "saved_path": saved_path
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save generated project: {str(e)}")
+
 @router.get("/")
 async def list_all_projects(
     project_service: ProjectService = Depends(get_project_service)
