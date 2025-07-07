@@ -7,6 +7,7 @@ import CollaborativeWorkspace from '@/pages/CollaborativeWorkspace';
 import EnterpriseDashboard from '@/pages/EnterpriseDashboard';
 import GlobalAIModels from '@/pages/GlobalAIModels';
 import AIMarketplace from '@/pages/marketplace/AIMarketplace';
+import { QuantumAILab } from '@/pages/quantum/QuantumAILab';
 import AgentInfo from '@/pages/AgentInfo';
 import ProjectHistory from '@/pages/ProjectHistory';
 
@@ -20,6 +21,7 @@ function App() {
       <Route path="/enterprise" element={<EnterpriseDashboard />} />
       <Route path="/ai-models" element={<GlobalAIModels />} />
       <Route path="/marketplace" element={<AIMarketplace />} />
+      <Route path="/quantum" element={<QuantumAILab />} />
       <Route path="/agents" element={
         <Layout>
           <AgentInfo />
