@@ -9,6 +9,7 @@ import GlobalAIModels from '@/pages/GlobalAIModels';
 import AIMarketplace from '@/pages/marketplace/AIMarketplace';
 import { QuantumAILab } from '@/pages/quantum/QuantumAILab';
 import { BlockchainSecurityDashboard } from '@/pages/blockchain/BlockchainSecurityDashboard';
+import { AIOrchestrationDashboard } from '@/pages/orchestration/AIOrchestrationDashboard';
 import AgentInfo from '@/pages/AgentInfo';
 import ProjectHistory from '@/pages/ProjectHistory';
 
@@ -24,6 +25,7 @@ function App() {
       <Route path="/marketplace" element={<AIMarketplace />} />
       <Route path="/quantum" element={<QuantumAILab />} />
       <Route path="/blockchain" element={<BlockchainSecurityDashboard />} />
+      <Route path="/orchestration" element={<AIOrchestrationDashboard />} />
       <Route path="/agents" element={
         <Layout>
           <AgentInfo />
