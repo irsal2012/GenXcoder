@@ -10,6 +10,7 @@ import AIMarketplace from '@/pages/marketplace/AIMarketplace';
 import { QuantumAILab } from '@/pages/quantum/QuantumAILab';
 import { BlockchainSecurityDashboard } from '@/pages/blockchain/BlockchainSecurityDashboard';
 import { AIOrchestrationDashboard } from '@/pages/orchestration/AIOrchestrationDashboard';
+import { MetaverseStudio } from '@/pages/metaverse/MetaverseStudio';
 import AgentInfo from '@/pages/AgentInfo';
 import ProjectHistory from '@/pages/ProjectHistory';
 
@@ -26,6 +27,7 @@ function App() {
       <Route path="/quantum" element={<QuantumAILab />} />
       <Route path="/blockchain" element={<BlockchainSecurityDashboard />} />
       <Route path="/orchestration" element={<AIOrchestrationDashboard />} />
+      <Route path="/metaverse" element={<MetaverseStudio />} />
       <Route path="/agents" element={
         <Layout>
           <AgentInfo />
