@@ -1,48 +1,52 @@
 """
 Model configuration for the Multi-Agent Framework.
-Handles OpenAI and other LLM configurations.
+Handles Azure OpenAI and other LLM configurations.
 """
 
 import os
 from dotenv import load_dotenv
 from typing import Dict, Any
 
-# Load environment variables
-load_dotenv()
+# Load environment variables with override
+load_dotenv(override=True)
 
 class ModelConfig:
     """Configuration class for LLM models."""
     
     def __init__(self):
-        self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        self.openai_base_url = os.getenv("OPENAI_BASE_URL")
-        self.openai_organization = os.getenv("OPENAI_ORGANIZATION")
-        self.max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "4000"))
-        self.temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.7"))
+        # Azure OpenAI configuration
+        self.azure_openai_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+        self.azure_openai_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        self.azure_openai_deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
+        self.azure_openai_api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-10-21")
         
-        if not self.openai_api_key:
-            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        # General configuration
+        self.max_tokens = int(os.getenv("AZURE_OPENAI_MAX_TOKENS", "4000"))
+        self.temperature = float(os.getenv("AZURE_OPENAI_TEMPERATURE", "0.7"))
+        
+        if not self.azure_openai_api_key:
+            raise ValueError("AZURE_OPENAI_API_KEY not found in environment variables")
+        if not self.azure_openai_endpoint:
+            raise ValueError("AZURE_OPENAI_ENDPOINT not found in environment variables")
+        if not self.azure_openai_deployment:
+            raise ValueError("AZURE_OPENAI_DEPLOYMENT not found in environment variables")
     
     def get_llm_config(self) -> Dict[str, Any]:
-        """Get the LLM configuration for AutoGen agents."""
+        """Get the LLM configuration for AutoGen agents with Azure OpenAI."""
         config = {
             "config_list": [
                 {
-                    "model": self.openai_model,
-                    "api_key": self.openai_api_key,
+                    "model": self.azure_openai_deployment,
+                    "api_key": self.azure_openai_api_key,
+                    "base_url": self.azure_openai_endpoint,
+                    "api_type": "azure",
+                    "api_version": self.azure_openai_api_version,
                 }
             ],
             "timeout": 120,
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
         }
-        
-        if self.openai_base_url:
-            config["config_list"][0]["base_url"] = self.openai_base_url
-        
-        if self.openai_organization:
-            config["config_list"][0]["organization"] = self.openai_organization
             
         return config
     

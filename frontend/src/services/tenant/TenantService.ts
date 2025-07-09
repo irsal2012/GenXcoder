@@ -178,6 +178,13 @@ export interface TenantIntegrations {
       model: string;
       maxTokens: number;
     };
+    azureOpenai?: {
+      apiKey: string;
+      endpoint: string;
+      deployment: string;
+      apiVersion: string;
+      maxTokens: number;
+    };
     anthropic?: {
       apiKey: string;
       model: string;
