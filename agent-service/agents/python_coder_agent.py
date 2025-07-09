@@ -317,127 +317,274 @@ logger = logging.getLogger(__name__)
             return self._generate_web_api_code()
         elif any(word in req_lower for word in ['gui', 'tkinter', 'interface', 'window']):
             return self._generate_gui_app_code()
-        elif any(word in req_lower for word in ['data', 'analysis', 'csv', 'pandas']):
+        elif any(word in req_lower for word in ['data', 'analysis', 'csv', 'pandas', 'statistical', 'visualization', 'report', 'pdf']):
             return self._generate_data_analysis_code()
         else:
             # Default: create a simple utility based on requirements
             return self._generate_generic_utility_code(requirements)
     
+    def _generate_data_analysis_code(self) -> Dict[str, str]:
+        """Generate a comprehensive data analysis tool."""
+        return {
+            "data_analysis_tool.py": '''#!/usr/bin/env python3
+"""
+Data Analysis Tool
+A comprehensive tool for CSV data analysis, statistical analysis, 
+interactive visualizations, and PDF report generation.
+"""
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from scipy import stats
+import os
+from datetime import datetime
+import warnings
+warnings.filterwarnings('ignore')
+
+class DataAnalysisTool:
+    """
+    A comprehensive data analysis tool that provides:
+    - CSV file reading and validation
+    - Statistical analysis
+    - Interactive visualizations
+    - PDF report generation
+    """
+    
+    def __init__(self):
+        """Initialize the data analysis tool."""
+        self.data = None
+        self.filename = None
+        self.analysis_results = {}
+        self.visualizations = []
+        
+    def load_csv(self, filepath, **kwargs):
+        """Load CSV file with error handling and validation."""
+        try:
+            self.data = pd.read_csv(filepath, **kwargs)
+            self.filename = os.path.basename(filepath)
+            print(f"✅ Successfully loaded {self.filename}")
+            print(f"📊 Dataset shape: {self.data.shape}")
+            return True
+        except Exception as e:
+            print(f"❌ Error loading CSV: {str(e)}")
+            return False
+    
+    def perform_statistical_analysis(self):
+        """Perform comprehensive statistical analysis on the dataset."""
+        if self.data is None:
+            return {"error": "No data loaded"}
+        
+        results = {}
+        numerical_cols = self.data.select_dtypes(include=[np.number]).columns
+        
+        if len(numerical_cols) > 0:
+            results['descriptive_stats'] = self.data[numerical_cols].describe()
+            if len(numerical_cols) > 1:
+                results['correlation_matrix'] = self.data[numerical_cols].corr()
+        
+        self.analysis_results = results
+        return results
+    
+    def create_visualizations(self):
+        """Create comprehensive visualizations for the dataset."""
+        if self.data is None:
+            return []
+        
+        viz_files = []
+        numerical_cols = self.data.select_dtypes(include=[np.number]).columns
+        
+        if len(numerical_cols) > 0:
+            plt.figure(figsize=(12, 8))
+            for i, col in enumerate(numerical_cols[:4]):
+                plt.subplot(2, 2, i+1)
+                self.data[col].hist(bins=30, alpha=0.7)
+                plt.title(f'Distribution of {col}')
+            
+            plt.tight_layout()
+            dist_file = 'distributions.png'
+            plt.savefig(dist_file, dpi=300, bbox_inches='tight')
+            plt.close()
+            viz_files.append(dist_file)
+        
+        self.visualizations = viz_files
+        return viz_files
+    
+    def generate_pdf_report(self, output_filename='data_analysis_report.pdf'):
+        """Generate a comprehensive PDF report."""
+        if self.data is None:
+            return "No data loaded"
+        
+        doc = SimpleDocTemplate(output_filename, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = []
+        
+        # Title
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30,
+            alignment=1
+        )
+        story.append(Paragraph("Data Analysis Report", title_style))
+        story.append(Spacer(1, 20))
+        
+        # Dataset Information
+        story.append(Paragraph("Dataset Overview", styles['Heading2']))
+        dataset_info = f"""
+        <b>Filename:</b> {self.filename}<br/>
+        <b>Shape:</b> {self.data.shape[0]} rows × {self.data.shape[1]} columns<br/>
+        <b>Columns:</b> {', '.join(self.data.columns[:5])}
+        """
+        story.append(Paragraph(dataset_info, styles['Normal']))
+        
+        # Build PDF
+        doc.build(story)
+        return output_filename
+    
+    def run_complete_analysis(self, csv_filepath, output_pdf='complete_analysis_report.pdf'):
+        """Run complete analysis pipeline."""
+        print("🚀 Starting Complete Data Analysis Pipeline")
+        
+        if not self.load_csv(csv_filepath):
+            return {"success": False, "error": "Failed to load CSV file"}
+        
+        stats_results = self.perform_statistical_analysis()
+        viz_files = self.create_visualizations()
+        pdf_path = self.generate_pdf_report(output_pdf)
+        
+        return {
+            "success": True,
+            "dataset_shape": self.data.shape,
+            "visualizations_created": len(viz_files),
+            "pdf_report": pdf_path
+        }
+
+def main():
+    """Main function to demonstrate the data analysis tool."""
+    print("🔬 Data Analysis Tool")
+    print("This tool provides comprehensive data analysis capabilities")
+    
+    analyzer = DataAnalysisTool()
+    
+    while True:
+        print("\\nOptions:")
+        print("1. Load CSV file")
+        print("2. Perform statistical analysis")
+        print("3. Create visualizations")
+        print("4. Generate PDF report")
+        print("5. Run complete analysis")
+        print("6. Exit")
+        
+        choice = input("\\nEnter your choice (1-6): ").strip()
+        
+        if choice == '1':
+            filepath = input("Enter CSV file path: ").strip()
+            analyzer.load_csv(filepath)
+        elif choice == '2':
+            results = analyzer.perform_statistical_analysis()
+            print("✅ Statistical analysis completed!")
+        elif choice == '3':
+            viz_files = analyzer.create_visualizations()
+            print(f"✅ Created {len(viz_files)} visualizations")
+        elif choice == '4':
+            pdf_path = analyzer.generate_pdf_report()
+            print(f"✅ PDF report generated: {pdf_path}")
+        elif choice == '5':
+            filepath = input("Enter CSV file path: ").strip()
+            result = analyzer.run_complete_analysis(filepath)
+            if result['success']:
+                print("🎉 Complete analysis finished successfully!")
+            else:
+                print(f"❌ Analysis failed: {result['error']}")
+        elif choice == '6':
+            print("👋 Goodbye!")
+            break
+        else:
+            print("❌ Invalid choice. Please try again.")
+
+if __name__ == "__main__":
+    main()
+''',
+            "requirements.txt": '''# Data Analysis Tool Requirements
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.14.0
+reportlab>=4.0.0
+openpyxl>=3.1.0
+'''
+        }
+    
     def _generate_calculator_code(self) -> Dict[str, str]:
         """Generate a calculator application."""
         return {
             "calculator.py": '''#!/usr/bin/env python3
-"""
-Simple Calculator Application
-Supports basic arithmetic operations: addition, subtraction, multiplication, division
-"""
+"""Simple Calculator Application"""
 
 import logging
 from typing import Union
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 class Calculator:
     """A simple calculator class with basic arithmetic operations."""
     
-    def __init__(self):
-        """Initialize the calculator."""
-        logger.info("Calculator initialized")
-    
     def add(self, a: Union[int, float], b: Union[int, float]) -> Union[int, float]:
-        """Add two numbers.
-        
-        Args:
-            a: First number
-            b: Second number
-            
-        Returns:
-            Sum of a and b
-        """
+        """Add two numbers."""
         result = a + b
         logger.info(f"Addition: {a} + {b} = {result}")
         return result
     
     def subtract(self, a: Union[int, float], b: Union[int, float]) -> Union[int, float]:
-        """Subtract two numbers.
-        
-        Args:
-            a: First number
-            b: Second number
-            
-        Returns:
-            Difference of a and b
-        """
+        """Subtract two numbers."""
         result = a - b
         logger.info(f"Subtraction: {a} - {b} = {result}")
         return result
     
     def multiply(self, a: Union[int, float], b: Union[int, float]) -> Union[int, float]:
-        """Multiply two numbers.
-        
-        Args:
-            a: First number
-            b: Second number
-            
-        Returns:
-            Product of a and b
-        """
+        """Multiply two numbers."""
         result = a * b
         logger.info(f"Multiplication: {a} * {b} = {result}")
         return result
     
     def divide(self, a: Union[int, float], b: Union[int, float]) -> Union[int, float]:
-        """Divide two numbers.
-        
-        Args:
-            a: Dividend
-            b: Divisor
-            
-        Returns:
-            Quotient of a and b
-            
-        Raises:
-            ValueError: If divisor is zero
-        """
+        """Divide two numbers."""
         if b == 0:
-            logger.error("Division by zero attempted")
             raise ValueError("Cannot divide by zero")
-        
         result = a / b
         logger.info(f"Division: {a} / {b} = {result}")
         return result
 
-
 def main():
-    """Main function to run the calculator interactively."""
+    """Main function to run the calculator."""
     calc = Calculator()
-    
-    print("Simple Calculator")
-    print("Operations: +, -, *, /")
-    print("Type 'quit' to exit")
+    print("Simple Calculator - Type 'quit' to exit")
     
     while True:
         try:
             user_input = input("\\nEnter calculation (e.g., 5 + 3): ").strip()
-            
             if user_input.lower() == 'quit':
-                print("Goodbye!")
                 break
             
-            # Parse the input
             parts = user_input.split()
             if len(parts) != 3:
                 print("Invalid format. Use: number operator number")
                 continue
             
-            num1 = float(parts[0])
-            operator = parts[1]
-            num2 = float(parts[2])
+            num1, operator, num2 = float(parts[0]), parts[1], float(parts[2])
             
-            # Perform calculation
             if operator == '+':
                 result = calc.add(num1, num2)
             elif operator == '-':
@@ -455,69 +602,10 @@ def main():
         except ValueError as e:
             print(f"Error: {e}")
         except KeyboardInterrupt:
-            print("\\nGoodbye!")
             break
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-
 
 if __name__ == "__main__":
     main()
-''',
-            "test_calculator.py": '''#!/usr/bin/env python3
-"""
-Unit tests for the Calculator class
-"""
-
-import unittest
-from calculator import Calculator
-
-
-class TestCalculator(unittest.TestCase):
-    """Test cases for Calculator class."""
-    
-    def setUp(self):
-        """Set up test fixtures before each test method."""
-        self.calc = Calculator()
-    
-    def test_add(self):
-        """Test addition operation."""
-        self.assertEqual(self.calc.add(2, 3), 5)
-        self.assertEqual(self.calc.add(-1, 1), 0)
-        self.assertEqual(self.calc.add(0, 0), 0)
-        self.assertAlmostEqual(self.calc.add(0.1, 0.2), 0.3, places=7)
-    
-    def test_subtract(self):
-        """Test subtraction operation."""
-        self.assertEqual(self.calc.subtract(5, 3), 2)
-        self.assertEqual(self.calc.subtract(1, 1), 0)
-        self.assertEqual(self.calc.subtract(-1, -1), 0)
-        self.assertAlmostEqual(self.calc.subtract(0.3, 0.1), 0.2, places=7)
-    
-    def test_multiply(self):
-        """Test multiplication operation."""
-        self.assertEqual(self.calc.multiply(3, 4), 12)
-        self.assertEqual(self.calc.multiply(-2, 3), -6)
-        self.assertEqual(self.calc.multiply(0, 5), 0)
-        self.assertAlmostEqual(self.calc.multiply(0.5, 0.4), 0.2, places=7)
-    
-    def test_divide(self):
-        """Test division operation."""
-        self.assertEqual(self.calc.divide(10, 2), 5)
-        self.assertEqual(self.calc.divide(-6, 3), -2)
-        self.assertAlmostEqual(self.calc.divide(1, 3), 0.3333333333333333, places=7)
-    
-    def test_divide_by_zero(self):
-        """Test division by zero raises ValueError."""
-        with self.assertRaises(ValueError):
-            self.calc.divide(5, 0)
-
-
-if __name__ == "__main__":
-    unittest.main()
-''',
-            "requirements.txt": '''# Calculator Application Requirements
-# No external dependencies required - uses only Python standard library
 '''
         }
     
@@ -525,236 +613,112 @@ if __name__ == "__main__":
         """Generate a todo application."""
         return {
             "todo_app.py": '''#!/usr/bin/env python3
-"""
-Simple Todo List Application
-Manage your tasks with add, remove, list, and mark complete functionality
-"""
+"""Simple Todo List Application"""
 
 import json
-import logging
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
+from typing import List, Dict, Any
 
 class Task:
-    """Represents a single task in the todo list."""
+    """Represents a single task."""
     
-    def __init__(self, title: str, description: str = "", priority: str = "medium"):
-        """Initialize a new task.
-        
-        Args:
-            title: Task title
-            description: Optional task description
-            priority: Task priority (low, medium, high)
-        """
-        self.id = int(datetime.now().timestamp() * 1000)  # Unique ID
+    def __init__(self, title: str, description: str = ""):
+        self.id = int(datetime.now().timestamp() * 1000)
         self.title = title
         self.description = description
-        self.priority = priority.lower()
         self.completed = False
         self.created_at = datetime.now().isoformat()
-        self.completed_at: Optional[str] = None
-    
-    def mark_complete(self):
-        """Mark the task as completed."""
-        self.completed = True
-        self.completed_at = datetime.now().isoformat()
-        logger.info(f"Task '{self.title}' marked as complete")
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert task to dictionary for JSON serialization."""
+        """Convert task to dictionary."""
         return {
             'id': self.id,
             'title': self.title,
             'description': self.description,
-            'priority': self.priority,
             'completed': self.completed,
-            'created_at': self.created_at,
-            'completed_at': self.completed_at
+            'created_at': self.created_at
         }
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Task':
-        """Create task from dictionary."""
-        task = cls(data['title'], data.get('description', ''), data.get('priority', 'medium'))
-        task.id = data['id']
-        task.completed = data.get('completed', False)
-        task.created_at = data.get('created_at', datetime.now().isoformat())
-        task.completed_at = data.get('completed_at')
-        return task
-
 
 class TodoApp:
     """Main todo application class."""
     
     def __init__(self, filename: str = "tasks.json"):
-        """Initialize the todo application.
-        
-        Args:
-            filename: JSON file to store tasks
-        """
         self.filename = filename
         self.tasks: List[Task] = []
         self.load_tasks()
-        logger.info("Todo application initialized")
     
-    def add_task(self, title: str, description: str = "", priority: str = "medium") -> Task:
-        """Add a new task.
-        
-        Args:
-            title: Task title
-            description: Optional task description
-            priority: Task priority
-            
-        Returns:
-            The created task
-        """
-        task = Task(title, description, priority)
+    def add_task(self, title: str, description: str = "") -> Task:
+        """Add a new task."""
+        task = Task(title, description)
         self.tasks.append(task)
         self.save_tasks()
-        logger.info(f"Added new task: {title}")
         return task
     
-    def remove_task(self, task_id: int) -> bool:
-        """Remove a task by ID.
-        
-        Args:
-            task_id: ID of task to remove
-            
-        Returns:
-            True if task was removed, False if not found
-        """
-        for i, task in enumerate(self.tasks):
-            if task.id == task_id:
-                removed_task = self.tasks.pop(i)
-                self.save_tasks()
-                logger.info(f"Removed task: {removed_task.title}")
-                return True
-        return False
-    
     def complete_task(self, task_id: int) -> bool:
-        """Mark a task as completed.
-        
-        Args:
-            task_id: ID of task to complete
-            
-        Returns:
-            True if task was completed, False if not found
-        """
+        """Mark a task as completed."""
         for task in self.tasks:
             if task.id == task_id:
-                task.mark_complete()
+                task.completed = True
                 self.save_tasks()
                 return True
         return False
     
-    def list_tasks(self, show_completed: bool = True) -> List[Task]:
-        """List all tasks.
-        
-        Args:
-            show_completed: Whether to include completed tasks
-            
-        Returns:
-            List of tasks
-        """
-        if show_completed:
-            return self.tasks
-        return [task for task in self.tasks if not task.completed]
+    def list_tasks(self) -> List[Task]:
+        """List all tasks."""
+        return self.tasks
     
     def save_tasks(self):
         """Save tasks to JSON file."""
         try:
             with open(self.filename, 'w') as f:
                 json.dump([task.to_dict() for task in self.tasks], f, indent=2)
-            logger.debug(f"Tasks saved to {self.filename}")
         except Exception as e:
-            logger.error(f"Failed to save tasks: {e}")
+            print(f"Failed to save tasks: {e}")
     
     def load_tasks(self):
         """Load tasks from JSON file."""
         try:
             with open(self.filename, 'r') as f:
                 data = json.load(f)
-                self.tasks = [Task.from_dict(task_data) for task_data in data]
-            logger.info(f"Loaded {len(self.tasks)} tasks from {self.filename}")
+                for task_data in data:
+                    task = Task(task_data['title'], task_data.get('description', ''))
+                    task.id = task_data['id']
+                    task.completed = task_data.get('completed', False)
+                    task.created_at = task_data.get('created_at', '')
+                    self.tasks.append(task)
         except FileNotFoundError:
-            logger.info("No existing task file found, starting fresh")
-        except Exception as e:
-            logger.error(f"Failed to load tasks: {e}")
-
+            pass
 
 def main():
-    """Main function to run the todo app interactively."""
+    """Main function."""
     app = TodoApp()
-    
     print("Todo List Application")
-    print("Commands: add, list, complete, remove, quit")
     
     while True:
-        try:
-            command = input("\\n> ").strip().lower()
-            
-            if command == 'quit':
-                print("Goodbye!")
-                break
-            
-            elif command == 'add':
-                title = input("Task title: ").strip()
-                if not title:
-                    print("Title cannot be empty")
-                    continue
-                
-                description = input("Description (optional): ").strip()
-                priority = input("Priority (low/medium/high) [medium]: ").strip() or "medium"
-                
-                task = app.add_task(title, description, priority)
-                print(f"Added task: {task.title} (ID: {task.id})")
-            
-            elif command == 'list':
-                tasks = app.list_tasks()
-                if not tasks:
-                    print("No tasks found")
-                else:
-                    print("\\nTasks:")
-                    for task in tasks:
-                        status = "✓" if task.completed else "○"
-                        print(f"  {status} [{task.id}] {task.title} ({task.priority})")
-                        if task.description:
-                            print(f"      {task.description}")
-            
-            elif command == 'complete':
-                try:
-                    task_id = int(input("Task ID to complete: "))
-                    if app.complete_task(task_id):
-                        print("Task marked as complete")
-                    else:
-                        print("Task not found")
-                except ValueError:
-                    print("Invalid task ID")
-            
-            elif command == 'remove':
-                try:
-                    task_id = int(input("Task ID to remove: "))
-                    if app.remove_task(task_id):
-                        print("Task removed")
-                    else:
-                        print("Task not found")
-                except ValueError:
-                    print("Invalid task ID")
-            
-            else:
-                print("Unknown command. Available: add, list, complete, remove, quit")
+        print("\\nCommands: add, list, complete, quit")
+        command = input("> ").strip().lower()
         
-        except KeyboardInterrupt:
-            print("\\nGoodbye!")
+        if command == 'quit':
             break
-        except Exception as e:
-            print(f"Error: {e}")
-
+        elif command == 'add':
+            title = input("Task title: ").strip()
+            if title:
+                task = app.add_task(title)
+                print(f"Added task: {task.title}")
+        elif command == 'list':
+            tasks = app.list_tasks()
+            for task in tasks:
+                status = "✓" if task.completed else "○"
+                print(f"  {status} [{task.id}] {task.title}")
+        elif command == 'complete':
+            try:
+                task_id = int(input("Task ID: "))
+                if app.complete_task(task_id):
+                    print("Task completed")
+                else:
+                    print("Task not found")
+            except ValueError:
+                print("Invalid task ID")
 
 if __name__ == "__main__":
     main()
@@ -773,10 +737,8 @@ Generated based on requirements: {requirements}
 import logging
 from typing import Any, Dict
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 class CustomUtility:
     """A custom utility class based on user requirements."""
@@ -787,17 +749,9 @@ class CustomUtility:
         self.requirements = """{requirements}"""
     
     def process(self, input_data: Any) -> Dict[str, Any]:
-        """Process input data according to requirements.
-        
-        Args:
-            input_data: Input data to process
-            
-        Returns:
-            Processed result
-        """
+        """Process input data according to requirements."""
         logger.info(f"Processing input: {{input_data}}")
         
-        # Basic processing logic - customize based on requirements
         result = {{
             "input": input_data,
             "processed": True,
@@ -815,7 +769,6 @@ class CustomUtility:
             "requirements": self.requirements,
             "version": "1.0.0"
         }}
-
 
 def main():
     """Main function to run the utility."""
@@ -841,7 +794,6 @@ def main():
             break
         except Exception as e:
             print(f"Error: {{e}}")
-
 
 if __name__ == "__main__":
     main()

@@ -152,11 +152,19 @@ class AgentManagerV2:
         Execute the configured pipeline with the given input data.
         Returns the final result or error information.
         """
+        start_time = time.time()
+        self.logger.info(f"🚀 [AGENT_MANAGER] Starting pipeline execution at {datetime.fromtimestamp(start_time).isoformat()}")
+        
         if not self._pipeline_config:
+            self.logger.error("❌ [AGENT_MANAGER] No pipeline configuration loaded")
             raise ValueError("No pipeline configuration loaded. Call initialize_pipeline() first.")
         
         if not correlation_id:
             correlation_id = event_bus.create_correlation_id()
+        
+        self.logger.info(f"🆔 [AGENT_MANAGER] Using correlation ID: {correlation_id}")
+        self.logger.info(f"📋 [AGENT_MANAGER] Pipeline: {self._pipeline_config.name}")
+        self.logger.info(f"📝 [AGENT_MANAGER] Input data length: {len(str(input_data)) if input_data else 0}")
         
         self._start_time = time.time()
         self._progress_data['is_running'] = True
@@ -164,9 +172,10 @@ class AgentManagerV2:
         self._progress_data['has_failures'] = False
         
         try:
-            self.logger.info(f"Starting pipeline execution: {self._pipeline_config.name}")
+            self.logger.info(f"🔧 [AGENT_MANAGER] Starting pipeline execution: {self._pipeline_config.name}")
             
             # Publish pipeline started event
+            self.logger.info("📡 [AGENT_MANAGER] Publishing pipeline started event")
             await event_bus.publish(AgentEvent(
                 event_type=EventType.PIPELINE_STARTED,
                 source="agent_manager_v2",
@@ -176,28 +185,42 @@ class AgentManagerV2:
             
             # Get execution order
             execution_order = self._pipeline_config.get_execution_order()
-            self.logger.info(f"Execution order: {execution_order}")
+            self.logger.info(f"📊 [AGENT_MANAGER] Execution order: {execution_order}")
+            self.logger.info(f"📊 [AGENT_MANAGER] Total step groups: {len(execution_order)}")
             
             # Execute steps in order
             current_data = input_data
             results = {}
             
-            for step_group in execution_order:
+            for group_index, step_group in enumerate(execution_order):
+                group_start = time.time()
+                self.logger.info(f"🔄 [AGENT_MANAGER] Executing step group {group_index + 1}/{len(execution_order)}: {step_group}")
+                
                 # Execute steps in this group (can be parallel)
                 group_results = await self._execute_step_group(step_group, current_data, correlation_id)
+                
+                group_duration = time.time() - group_start
+                self.logger.info(f"✅ [AGENT_MANAGER] Step group {group_index + 1} completed in {group_duration:.2f}s")
+                self.logger.info(f"📊 [AGENT_MANAGER] Group results keys: {list(group_results.keys()) if group_results else 'None'}")
+                
                 results.update(group_results)
                 
                 # Update current data with results from this group
                 if group_results:
                     # Use the last result as input for next group
                     current_data = list(group_results.values())[-1]
+                    self.logger.info(f"📝 [AGENT_MANAGER] Updated current_data for next group")
             
             # Mark as completed
+            total_duration = time.time() - start_time
+            self.logger.info(f"🏁 [AGENT_MANAGER] All step groups completed in {total_duration:.2f}s")
+            
             self._progress_data['is_running'] = False
             self._progress_data['is_completed'] = True
             self._progress_data['progress_percentage'] = 100.0
             
             # Publish pipeline completed event
+            self.logger.info("📡 [AGENT_MANAGER] Publishing pipeline completed event")
             await event_bus.publish(AgentEvent(
                 event_type=EventType.PIPELINE_COMPLETED,
                 source="agent_manager_v2",
@@ -206,9 +229,10 @@ class AgentManagerV2:
             ))
             
             # Save project to backend
+            self.logger.info("💾 [AGENT_MANAGER] Saving project to backend")
             await self._save_project_to_backend(correlation_id, input_data, results)
             
-            self.logger.info("Pipeline execution completed successfully")
+            self.logger.info(f"✅ [AGENT_MANAGER] Pipeline execution completed successfully in {total_duration:.2f}s")
             return {
                 "success": True,
                 "results": results,
@@ -217,7 +241,10 @@ class AgentManagerV2:
             }
             
         except Exception as e:
-            self.logger.error(f"Pipeline execution failed: {str(e)}")
+            total_duration = time.time() - start_time
+            self.logger.error(f"❌ [AGENT_MANAGER] Pipeline execution failed after {total_duration:.2f}s: {str(e)}")
+            self.logger.error(f"❌ [AGENT_MANAGER] Exception type: {type(e).__name__}")
+            self.logger.error(f"❌ [AGENT_MANAGER] Exception details: {str(e)}")
             
             # Mark as failed
             self._progress_data['is_running'] = False

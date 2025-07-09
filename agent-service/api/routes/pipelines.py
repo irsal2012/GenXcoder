@@ -30,19 +30,34 @@ async def execute_pipeline(
     This endpoint runs the full multi-agent pipeline with the specified configuration.
     Supports both synchronous and asynchronous execution modes.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    start_time = datetime.now()
+    
+    logger.info(f"🚀 [PIPELINE] Starting pipeline execution request at {start_time.isoformat()}")
+    logger.info(f"📋 [PIPELINE] Request details: pipeline_name={request.pipeline_name}, async={request.async_execution}, input_length={len(str(request.input_data)) if request.input_data else 0}")
+    
     try:
         # Initialize pipeline
         pipeline_name = request.pipeline_name or "default"
+        logger.info(f"🔧 [PIPELINE] Initializing pipeline: {pipeline_name}")
+        
+        init_start = datetime.now()
         success = agent_manager_v2.initialize_pipeline(pipeline_name)
+        init_duration = (datetime.now() - init_start).total_seconds()
         
         if not success:
+            logger.error(f"❌ [PIPELINE] Pipeline initialization failed for: {pipeline_name}")
             raise HTTPException(
                 status_code=400,
                 detail=f"Failed to initialize pipeline '{pipeline_name}'"
             )
         
+        logger.info(f"✅ [PIPELINE] Pipeline initialized successfully in {init_duration:.2f}s")
+        
         # Generate execution ID
         execution_id = str(uuid.uuid4())
+        logger.info(f"🆔 [PIPELINE] Generated execution ID: {execution_id}")
         
         # Store execution info
         pipeline_execution_store[execution_id] = {
@@ -56,8 +71,12 @@ async def execute_pipeline(
             "progress": agent_manager_v2.get_progress()
         }
         
-            # Execute pipeline in background if async requested
+        logger.info(f"💾 [PIPELINE] Stored execution info for: {execution_id}")
+        
+        # Execute pipeline in background if async requested
         if request.async_execution:
+            logger.info(f"🔄 [PIPELINE] Starting async execution for: {execution_id}")
+            
             background_tasks.add_task(
                 _execute_pipeline_background,
                 execution_id,
@@ -65,6 +84,9 @@ async def execute_pipeline(
                 request.correlation_id,
                 pipeline_name
             )
+            
+            total_duration = (datetime.now() - start_time).total_seconds()
+            logger.info(f"✅ [PIPELINE] Async execution started successfully in {total_duration:.2f}s")
             
             return PipelineExecutionResponse(
                 success=True,
@@ -77,11 +99,17 @@ async def execute_pipeline(
             )
         else:
             # Execute synchronously
+            logger.info(f"⏳ [PIPELINE] Starting synchronous execution for: {execution_id}")
+            
             try:
+                exec_start = datetime.now()
                 result = await agent_manager_v2.execute_pipeline(
                     request.input_data,
                     request.correlation_id
                 )
+                exec_duration = (datetime.now() - exec_start).total_seconds()
+                
+                logger.info(f"🏁 [PIPELINE] Synchronous execution completed in {exec_duration:.2f}s")
                 
                 # Update execution store
                 pipeline_execution_store[execution_id].update({
@@ -90,6 +118,9 @@ async def execute_pipeline(
                     "result": result,
                     "progress": agent_manager_v2.get_progress()
                 })
+                
+                total_duration = (datetime.now() - start_time).total_seconds()
+                logger.info(f"✅ [PIPELINE] Total execution time: {total_duration:.2f}s")
                 
                 return PipelineExecutionResponse(
                     success=result.get("success", False),
@@ -102,6 +133,9 @@ async def execute_pipeline(
                 )
                 
             except Exception as e:
+                exec_duration = (datetime.now() - start_time).total_seconds()
+                logger.error(f"❌ [PIPELINE] Synchronous execution failed after {exec_duration:.2f}s: {str(e)}")
+                
                 # Update execution store with error
                 pipeline_execution_store[execution_id].update({
                     "status": "failed",
@@ -118,6 +152,8 @@ async def execute_pipeline(
     except HTTPException:
         raise
     except Exception as e:
+        total_duration = (datetime.now() - start_time).total_seconds()
+        logger.error(f"❌ [PIPELINE] Pipeline execution request failed after {total_duration:.2f}s: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to execute pipeline: {str(e)}"
@@ -349,11 +385,24 @@ async def _execute_pipeline_background(
     import logging
     
     logger = logging.getLogger(__name__)
+    start_time = datetime.now()
+    
+    logger.info(f"🔄 [BACKGROUND] Starting background pipeline execution for {execution_id} at {start_time.isoformat()}")
+    logger.info(f"📋 [BACKGROUND] Pipeline: {pipeline_name}, Input length: {len(str(input_data)) if input_data else 0}")
     
     try:
+        # Execute the pipeline
+        logger.info(f"⚡ [BACKGROUND] Calling agent_manager_v2.execute_pipeline for {execution_id}")
+        exec_start = datetime.now()
+        
         result = await agent_manager_v2.execute_pipeline(input_data, correlation_id)
         
+        exec_duration = (datetime.now() - exec_start).total_seconds()
+        logger.info(f"🏁 [BACKGROUND] Pipeline execution completed for {execution_id} in {exec_duration:.2f}s")
+        logger.info(f"📊 [BACKGROUND] Result success: {result.get('success', False)}")
+        
         # Update execution store
+        logger.info(f"💾 [BACKGROUND] Updating execution store for {execution_id}")
         pipeline_execution_store[execution_id].update({
             "status": "completed" if result.get("success") else "failed",
             "completed_at": datetime.now().isoformat(),
@@ -363,6 +412,7 @@ async def _execute_pipeline_background(
         
         # If pipeline completed successfully, save to backend
         if result.get("success"):
+            logger.info(f"💾 [BACKGROUND] Attempting to save project {execution_id} to backend")
             try:
                 # Prepare data for backend
                 project_data = {
@@ -375,24 +425,58 @@ async def _execute_pipeline_background(
                     "result": result.get("results", {})
                 }
                 
+                logger.info(f"📋 [BACKGROUND] Project data prepared for {execution_id}")
+                logger.info(f"📊 [BACKGROUND] Result keys: {list(result.get('results', {}).keys())}")
+                
                 # Call backend to save the project
-                async with httpx.AsyncClient() as client:
-                    backend_response = await client.post(
-                        "http://localhost:8000/api/v1/projects/save-generated",
-                        json=project_data,
-                        timeout=30.0
-                    )
-                    
-                    if backend_response.status_code == 200:
-                        logger.info(f"Successfully saved project {execution_id} to backend")
-                    else:
-                        logger.warning(f"Failed to save project {execution_id} to backend: {backend_response.status_code}")
+                save_start = datetime.now()
+                
+                try:
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+                        logger.info(f"🌐 [BACKGROUND] Making HTTP request to backend for {execution_id}")
+                        
+                        backend_response = await client.post(
+                            "http://localhost:8000/api/v1/projects/save-generated",
+                            json=project_data
+                        )
+                        
+                        save_duration = (datetime.now() - save_start).total_seconds()
+                        
+                        logger.info(f"📡 [BACKGROUND] Backend response status: {backend_response.status_code}")
+                        
+                        if backend_response.status_code == 200:
+                            response_data = backend_response.json()
+                            logger.info(f"✅ [BACKGROUND] Successfully saved project {execution_id} to backend in {save_duration:.2f}s")
+                            logger.info(f"📁 [BACKGROUND] Saved to path: {response_data.get('saved_path', 'Unknown')}")
+                        else:
+                            response_text = backend_response.text
+                            logger.error(f"❌ [BACKGROUND] Backend save failed for {execution_id}: {backend_response.status_code}")
+                            logger.error(f"❌ [BACKGROUND] Backend error response: {response_text}")
+                            
+                except httpx.TimeoutException as timeout_error:
+                    logger.error(f"⏰ [BACKGROUND] Timeout saving project {execution_id} to backend: {str(timeout_error)}")
+                except httpx.ConnectError as connect_error:
+                    logger.error(f"🔌 [BACKGROUND] Connection error saving project {execution_id} to backend: {str(connect_error)}")
+                except Exception as http_error:
+                    logger.error(f"🌐 [BACKGROUND] HTTP error saving project {execution_id} to backend: {str(http_error)}")
                         
             except Exception as save_error:
-                logger.error(f"Error saving project {execution_id} to backend: {str(save_error)}")
+                logger.error(f"❌ [BACKGROUND] Unexpected error saving project {execution_id} to backend: {str(save_error)}")
+                logger.error(f"❌ [BACKGROUND] Error type: {type(save_error).__name__}")
+                import traceback
+                logger.error(f"❌ [BACKGROUND] Traceback: {traceback.format_exc()}")
                 # Don't fail the pipeline execution if saving fails
+        else:
+            logger.warning(f"⚠️ [BACKGROUND] Pipeline execution was not successful for {execution_id}")
+        
+        total_duration = (datetime.now() - start_time).total_seconds()
+        logger.info(f"✅ [BACKGROUND] Background task completed for {execution_id} in {total_duration:.2f}s")
         
     except Exception as e:
+        exec_duration = (datetime.now() - start_time).total_seconds()
+        logger.error(f"❌ [BACKGROUND] Background pipeline execution failed for {execution_id} after {exec_duration:.2f}s: {str(e)}")
+        logger.error(f"❌ [BACKGROUND] Exception details: {type(e).__name__}: {str(e)}")
+        
         # Update execution store with error
         pipeline_execution_store[execution_id].update({
             "status": "failed",

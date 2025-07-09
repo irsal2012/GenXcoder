@@ -144,13 +144,29 @@ class APIClient {
 
   // Code generation
   async generateCode(request: GenerateCodeRequest): Promise<GenerationResponse> {
+    const startTime = Date.now();
+    console.log('🚀 [API] Starting code generation process...', {
+      user_input_length: request.user_input?.length,
+      project_name: request.project_name,
+      timestamp: new Date().toISOString()
+    });
+
     try {
       // First, initialize the pipeline
+      console.log('📋 [API] Step 1: Initializing pipeline...');
+      const initStartTime = Date.now();
+      
       await this.agentRequest<any>('post', '/v1/pipelines/initialize', null, {
         params: { pipeline_name: 'iterative_development' }
       });
       
+      const initDuration = Date.now() - initStartTime;
+      console.log(`✅ [API] Pipeline initialized successfully in ${initDuration}ms`);
+      
       // Then execute the pipeline asynchronously
+      console.log('🔄 [API] Step 2: Starting async pipeline execution...');
+      const execStartTime = Date.now();
+      
       const response = await this.agentRequest<any>('post', '/v1/pipelines/execute', {
         input_data: request.user_input,
         pipeline_name: request.project_name || "iterative_development",
@@ -159,13 +175,29 @@ class APIClient {
         timeout: 10000 // Shorter timeout for the initial request
       });
       
+      const execDuration = Date.now() - execStartTime;
+      const totalDuration = Date.now() - startTime;
+      
+      console.log(`✅ [API] Pipeline execution started successfully in ${execDuration}ms (total: ${totalDuration}ms)`, {
+        execution_id: response.execution_id,
+        status: response.status,
+        message: response.message
+      });
+      
       return {
         project_id: response.execution_id,
         message: response.message || "Pipeline execution started",
         status: response.status || "running"
       };
-    } catch (error) {
-      console.error('Failed to generate code:', error);
+    } catch (error: any) {
+      const totalDuration = Date.now() - startTime;
+      console.error(`❌ [API] Code generation failed after ${totalDuration}ms:`, {
+        error: error.message,
+        code: error.code,
+        status: error.response?.status,
+        data: error.response?.data,
+        stack: error.stack
+      });
       throw error;
     }
   }
