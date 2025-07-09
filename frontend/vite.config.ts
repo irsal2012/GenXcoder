@@ -8,10 +8,22 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'stream': 'stream-browserify',
+      'util': 'util',
+      'buffer': 'buffer'
     },
   },
   server: {
     port: 3000,
     host: true,
   },
+  define: {
+    global: 'globalThis',
+    'process.env': {},
+    'process.version': '"v18.0.0"',
+    'process.platform': '"browser"'
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'buffer', 'util']
+  }
 })
