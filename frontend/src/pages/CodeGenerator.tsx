@@ -73,9 +73,27 @@ export const CodeGenerator: React.FC = () => {
 
       const response: GenerationResponse = await apiClient.generateCode(request);
       setCurrentProjectId(response.project_id);
-    } catch (err) {
+    } catch (err: any) {
       setIsGenerating(false);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      
+      // Handle specific error types
+      if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error')) {
+        setError('Unable to connect to the AI service. Please ensure all services are running and try again.');
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('The initial request is taking longer than expected. This is normal for complex projects. The generation will continue in the background.');
+        // Don't stop the generation process, just show a warning
+        setIsGenerating(false);
+        // Try to get a project ID from the error response if available
+        if (err.response?.data?.execution_id) {
+          setCurrentProjectId(err.response.data.execution_id);
+        }
+      } else if (err.response?.status === 500) {
+        setError('Internal server error. Please check the service logs and try again.');
+      } else if (err.response?.status === 400) {
+        setError('Invalid request. Please check your input and try again.');
+      } else {
+        setError(err.message || 'An unexpected error occurred. Please try again.');
+      }
     }
   };
 

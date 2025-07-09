@@ -145,10 +145,18 @@ class APIClient {
   // Code generation
   async generateCode(request: GenerateCodeRequest): Promise<GenerationResponse> {
     try {
+      // First, initialize the pipeline
+      await this.agentRequest<any>('post', '/v1/pipelines/initialize', null, {
+        params: { pipeline_name: 'iterative_development' }
+      });
+      
+      // Then execute the pipeline asynchronously
       const response = await this.agentRequest<any>('post', '/v1/pipelines/execute', {
         input_data: request.user_input,
-        pipeline_name: request.project_name || "default",
+        pipeline_name: request.project_name || "iterative_development",
         async_execution: true
+      }, {
+        timeout: 10000 // Shorter timeout for the initial request
       });
       
       return {
@@ -300,7 +308,13 @@ class APIClient {
     config?: any
   ): Promise<T> {
     try {
-      const response: AxiosResponse<T> = await this.agentClient[method](url, data, config);
+      // Merge config with default timeout
+      const requestConfig = {
+        timeout: 30000,
+        ...config
+      };
+      
+      const response: AxiosResponse<T> = await this.agentClient[method](url, data, requestConfig);
       return response.data;
     } catch (error) {
       console.error(`Agent Service ${method.toUpperCase()} ${url} failed:`, error);
