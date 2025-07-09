@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from models.responses import ProjectHistoryResponse, ProjectHistoryItem, ProjectResult
 from models.requests import ProjectQueryRequest
+from services.file_storage_service import FileStorageService
 
 class ProjectService:
     """Service for managing project data and history."""
@@ -16,11 +17,25 @@ class ProjectService:
         self.logger = logging.getLogger(__name__)
         self.project_history: List[Dict[str, Any]] = []
         self.project_results: Dict[str, Dict[str, Any]] = {}
+        self.file_storage = FileStorageService()
     
     async def add_project_to_history(self, project_data: Dict[str, Any]):
         """Add a project to the history."""
+        # Handle timestamp properly - it might be a string or datetime object
+        timestamp = project_data.get('timestamp', datetime.now())
+        if isinstance(timestamp, str):
+            # Try to parse the string timestamp
+            try:
+                from datetime import datetime as dt
+                timestamp = dt.fromisoformat(timestamp.replace('Z', '+00:00'))
+            except:
+                # If parsing fails, use current time
+                timestamp = datetime.now()
+        elif timestamp is None:
+            timestamp = datetime.now()
+        
         history_item = {
-            'timestamp': project_data.get('timestamp', datetime.now()),
+            'timestamp': timestamp,
             'project_name': project_data.get('project_name', ''),
             'user_input': project_data.get('user_input', ''),
             'success': project_data.get('success', False),
@@ -106,6 +121,22 @@ class ProjectService:
         })
         
         self.logger.info(f"Stored result for project {project_id}")
+    
+    async def save_project_result(self, project_id: str, project_data: Dict[str, Any]) -> str:
+        """Save project result to both memory and disk storage."""
+        try:
+            # Store in memory
+            await self.store_project_result(project_id, project_data)
+            
+            # Save to disk using FileStorageService
+            saved_path = self.file_storage.save_project(project_id, project_data)
+            
+            self.logger.info(f"Project {project_id} saved to disk at: {saved_path}")
+            return saved_path
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save project {project_id}: {str(e)}")
+            raise
     
     async def get_project_result(self, project_id: str) -> Optional[ProjectResult]:
         """Get complete project result by ID."""

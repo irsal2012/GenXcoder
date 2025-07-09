@@ -213,11 +213,19 @@ async def save_generated_project(
             raise HTTPException(status_code=400, detail="Missing project_id or execution_id")
         
         # Transform agent service result format to backend format
+        timestamp = project_data.get('completed_at') or project_data.get('started_at')
+        if isinstance(timestamp, str):
+            # Already in string format, use as-is
+            timestamp_str = timestamp
+        else:
+            # Convert to string if it's a datetime object
+            timestamp_str = timestamp.isoformat() if timestamp else None
+        
         transformed_data = {
             'project_id': project_id,
             'project_name': project_data.get('pipeline_name', f'project-{project_id[:8]}'),
             'user_input': project_data.get('input_data', ''),
-            'timestamp': project_data.get('completed_at') or project_data.get('started_at'),
+            'timestamp': timestamp_str,
             'success': project_data.get('status') == 'completed',
             'execution_time': 0,  # Calculate if needed
             'generated_files': {},

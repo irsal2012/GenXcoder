@@ -9,9 +9,11 @@ from core.agent_factory import agent_factory
 from core.events import event_bus, EventType, AgentEvent, publish_agent_started, publish_agent_completed, publish_agent_failed
 from config.pipeline_config import pipeline_config_manager, PipelineConfig, ExecutionMode
 from core.iterative_executor import iterative_executor
+from core.backend_client import backend_client
 from models.feedback import IterativeLoopResult
 from agents.base import BaseAgent
 import time
+from datetime import datetime
 
 class AgentManagerV2:
     """
@@ -202,6 +204,9 @@ class AgentManagerV2:
                 correlation_id=correlation_id,
                 data={"results": results}
             ))
+            
+            # Save project to backend
+            await self._save_project_to_backend(correlation_id, input_data, results)
             
             self.logger.info("Pipeline execution completed successfully")
             return {
@@ -532,6 +537,41 @@ class AgentManagerV2:
             validation_result['suggestions'].append("Provide more details about the functionality you want to implement.")
         
         return validation_result
+    
+    async def _save_project_to_backend(self, execution_id: str, input_data: Any, results: Dict[str, Any]):
+        """Save completed project to backend storage."""
+        try:
+            # Check if backend is available
+            backend_healthy = await backend_client.check_backend_health()
+            if not backend_healthy:
+                self.logger.warning("Backend is not healthy, skipping project save")
+                return
+            
+            # Prepare project data for backend
+            project_data = {
+                "execution_id": execution_id,
+                "pipeline_name": self._pipeline_config.name if self._pipeline_config else "default",
+                "input_data": str(input_data),
+                "status": "completed",
+                "started_at": datetime.fromtimestamp(self._start_time).isoformat() if self._start_time else datetime.now().isoformat(),
+                "completed_at": datetime.now().isoformat(),
+                "result": results,
+                "progress": self._progress_data
+            }
+            
+            # Save to backend
+            self.logger.info(f"Saving project {execution_id} to backend")
+            save_result = await backend_client.save_generated_project(project_data)
+            
+            if save_result.get("success"):
+                self.logger.info(f"Successfully saved project {execution_id} to backend")
+                if "saved_path" in save_result:
+                    self.logger.info(f"Project files saved to: {save_result['saved_path']}")
+            else:
+                self.logger.error(f"Failed to save project {execution_id} to backend: {save_result.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            self.logger.error(f"Error saving project {execution_id} to backend: {str(e)}")
     
     def clear_agents(self):
         """Clear all active agents and reset state."""

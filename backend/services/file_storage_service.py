@@ -33,11 +33,17 @@ class FileStorageService:
             project_dir.mkdir(exist_ok=True)
             
             # Save project metadata
+            timestamp = project_data.get('timestamp', datetime.now())
+            if isinstance(timestamp, str):
+                timestamp_str = timestamp
+            else:
+                timestamp_str = timestamp.isoformat() if timestamp else datetime.now().isoformat()
+            
             metadata = {
                 'project_id': project_id,
                 'project_name': project_data.get('project_name'),
                 'user_input': project_data.get('user_input'),
-                'timestamp': project_data.get('timestamp', datetime.now()).isoformat(),
+                'timestamp': timestamp_str,
                 'generated_at': datetime.now().isoformat()
             }
             
