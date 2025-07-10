@@ -799,24 +799,3 @@ if __name__ == "__main__":
     main()
 '''
         }
-
-
-# Backward compatibility - keep the old class for existing code
-class PythonCoder:
-    """Legacy wrapper for backward compatibility."""
-    
-    @staticmethod
-    def get_config() -> Dict[str, Any]:
-        """Get configuration for the Python Coding Agent."""
-        return {
-            "name": "PythonCoder",
-            "system_message": PythonCoderAgent.get_metadata().description,
-            "human_input_mode": "NEVER",
-            "max_consecutive_auto_reply": 2,
-        }
-    
-    @staticmethod
-    def create_agent(llm_config: Dict[str, Any]) -> autogen.AssistantAgent:
-        """Create and return a configured PythonCoder agent."""
-        agent_instance = PythonCoderAgent(llm_config)
-        return agent_instance.create_agent()
