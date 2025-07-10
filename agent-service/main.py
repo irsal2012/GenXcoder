@@ -44,10 +44,15 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Include routers
+# Include routers with v1 prefix (new API)
 app.include_router(agents.router, prefix="/v1/agents", tags=["agents"])
 app.include_router(pipelines.router, prefix="/v1/pipelines", tags=["pipelines"])
 app.include_router(capabilities.router, prefix="/v1/capabilities", tags=["capabilities"])
+
+# Include routers without prefix for backward compatibility
+app.include_router(agents.router, prefix="/agents", tags=["agents-legacy"])
+app.include_router(pipelines.router, prefix="/pipelines", tags=["pipelines-legacy"])
+app.include_router(capabilities.router, prefix="/capabilities", tags=["capabilities-legacy"])
 
 @app.get("/")
 async def root():

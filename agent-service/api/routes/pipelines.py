@@ -204,24 +204,70 @@ async def stream_pipeline_execution_status(execution_id: str):
         )
     
     async def event_stream():
-        while True:
-            if execution_id not in pipeline_execution_store:
-                break
+        sent_events = 0
+        max_events = 10  # Prevent infinite streaming
+        
+        try:
+            # Always send at least one event
+            if execution_id in pipeline_execution_store:
+                execution_info = pipeline_execution_store[execution_id].copy()
                 
-            execution_info = pipeline_execution_store[execution_id]
-            
-            # Update progress if still running
-            if execution_info["status"] == "running":
-                execution_info["progress"] = agent_manager_v2.get_progress()
-            
-            # Send status update
-            yield f"data: {json.dumps(execution_info)}\n\n"
-            
-            # Break if execution is completed or failed
-            if execution_info["status"] in ["completed", "failed"]:
-                break
+                # Update progress if still running
+                if execution_info["status"] == "running":
+                    execution_info["progress"] = agent_manager_v2.get_progress()
                 
-            await asyncio.sleep(2)  # Poll every 2 seconds for pipeline updates
+                # Send initial status update
+                yield f"data: {json.dumps(execution_info)}\n\n"
+                sent_events += 1
+                
+                # If already completed, send completion event and end
+                if execution_info["status"] in ["completed", "failed"]:
+                    completion_event = {
+                        "stream_status": "completed",
+                        "execution_id": execution_id,
+                        "final_status": execution_info["status"],
+                        "events_sent": sent_events
+                    }
+                    yield f"data: {json.dumps(completion_event)}\n\n"
+                    return
+                
+                # For running executions, continue monitoring
+                while sent_events < max_events:
+                    await asyncio.sleep(1)  # Poll every 1 second
+                    
+                    if execution_id not in pipeline_execution_store:
+                        break
+                        
+                    execution_info = pipeline_execution_store[execution_id].copy()
+                    
+                    # Update progress if still running
+                    if execution_info["status"] == "running":
+                        execution_info["progress"] = agent_manager_v2.get_progress()
+                    
+                    # Send status update
+                    yield f"data: {json.dumps(execution_info)}\n\n"
+                    sent_events += 1
+                    
+                    # Break if execution is completed or failed
+                    if execution_info["status"] in ["completed", "failed"]:
+                        break
+            
+            # Send final stream end event
+            end_event = {
+                "stream_status": "ended",
+                "events_sent": sent_events,
+                "execution_id": execution_id
+            }
+            yield f"data: {json.dumps(end_event)}\n\n"
+            
+        except Exception as e:
+            # Send error event if something goes wrong
+            error_event = {
+                "stream_status": "error",
+                "error": str(e),
+                "events_sent": sent_events
+            }
+            yield f"data: {json.dumps(error_event)}\n\n"
     
     return StreamingResponse(
         event_stream(),
@@ -229,6 +275,8 @@ async def stream_pipeline_execution_status(execution_id: str):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Cache-Control",
         }
     )
 

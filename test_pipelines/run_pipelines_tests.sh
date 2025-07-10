@@ -17,24 +17,22 @@ else
     exit 1
 fi
 
-# Install dependencies if needed
-if [ ! -d "venv" ]; then
-    echo "📦 Creating virtual environment..."
-    python3 -m venv venv
-fi
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "📦 Activating virtual environment..."
-source venv/bin/activate
+# Change to the script directory
+cd "$SCRIPT_DIR"
 
 echo "📦 Installing test dependencies..."
-pip install -r requirements.txt
+# Use system python to install dependencies
+python3 -m pip install --user -r requirements.txt
 
 echo ""
 echo "🧪 Running Pipelines API Tests..."
 echo "=================================="
 
 # Run the main test script
-python test_pipelines_api.py --url http://localhost:8001 --test all
+python3 test_pipelines_api.py --url http://localhost:8001 --test all
 
 echo ""
 echo "📊 Test Results Summary"
@@ -42,12 +40,12 @@ echo "======================"
 echo "Check the output above for detailed test results."
 echo ""
 echo "To run specific tests:"
-echo "  python test_pipelines_api.py --test connection"
-echo "  python test_pipelines_api.py --test initialize"
-echo "  python test_pipelines_api.py --test info"
-echo "  python test_pipelines_api.py --test validate"
-echo "  python test_pipelines_api.py --test execute_sync"
-echo "  python test_pipelines_api.py --test execute_async"
-echo "  python test_pipelines_api.py --test list"
-echo "  python test_pipelines_api.py --test clear"
-echo "  python test_pipelines_api.py --test errors"
+echo "  python3 test_pipelines_api.py --test connection"
+echo "  python3 test_pipelines_api.py --test initialize"
+echo "  python3 test_pipelines_api.py --test info"
+echo "  python3 test_pipelines_api.py --test validate"
+echo "  python3 test_pipelines_api.py --test execute_sync"
+echo "  python3 test_pipelines_api.py --test execute_async"
+echo "  python3 test_pipelines_api.py --test list"
+echo "  python3 test_pipelines_api.py --test clear"
+echo "  python3 test_pipelines_api.py --test errors"
