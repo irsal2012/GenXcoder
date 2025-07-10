@@ -14,7 +14,14 @@ class FileStorageService:
     
     def __init__(self, base_storage_path: str = "generated_projects"):
         self.logger = logging.getLogger(__name__)
-        self.base_storage_path = Path(base_storage_path)
+        
+        # If path is relative, make it relative to the backend directory
+        if not Path(base_storage_path).is_absolute():
+            # Get the backend directory (parent of this file's directory)
+            backend_dir = Path(__file__).parent.parent
+            self.base_storage_path = backend_dir / base_storage_path
+        else:
+            self.base_storage_path = Path(base_storage_path)
         
         # Create base storage directory if it doesn't exist
         self.base_storage_path.mkdir(exist_ok=True)
