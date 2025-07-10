@@ -165,3 +165,7 @@ Writing Style:
                 "contributing_guide": ""
             }
         }
+
+
+# Legacy compatibility alias
+DocumentationWriter = DocumentationWriterAgent

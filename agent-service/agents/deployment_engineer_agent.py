@@ -177,3 +177,7 @@ Standards:
                 "security_configs": {}
             }
         }
+
+
+# Legacy compatibility alias
+DeploymentEngineer = DeploymentEngineerAgent

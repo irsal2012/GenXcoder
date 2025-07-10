@@ -799,3 +799,7 @@ if __name__ == "__main__":
     main()
 '''
         }
+
+
+# Legacy compatibility alias
+PythonCoder = PythonCoderAgent

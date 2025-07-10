@@ -136,6 +136,10 @@ Be thorough, precise, and always consider the complete software development life
                 "assumptions": [],
                 "edge_cases": [],
                 "questions": [],
-                "acceptance_criteria": []
-            }
+            "acceptance_criteria": []
         }
+    }
+
+
+# Legacy compatibility alias
+RequirementAnalyst = RequirementAnalystAgent

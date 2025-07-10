@@ -181,3 +181,7 @@ Code Structure:
                 "assets": []
             }
         }
+
+
+# Legacy compatibility alias
+UIDesigner = UIDesignerAgent

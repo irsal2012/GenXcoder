@@ -159,3 +159,7 @@ Standards:
                 "test_coverage_target": 90
             }
         }
+
+
+# Legacy compatibility alias
+TestGenerator = TestGeneratorAgent

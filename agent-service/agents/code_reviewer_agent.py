@@ -378,3 +378,7 @@ Standards:
             positive.append("Proper error handling implemented")
         
         return positive
+
+
+# Legacy compatibility alias
+CodeReviewer = CodeReviewerAgent
